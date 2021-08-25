@@ -163,6 +163,9 @@ def load_timit():
     annotation = []
     max = 0
     for spec,label in train_dataloader:
+        print(spec.shape)
+        print(label.shape)
+        exit()
         path = os.path.join(args.path, "data/npz/TRAIN/", f"data{count}")
         np.savez(path, spec=spec, label=label)
         annotation.append({'path':f"{path}.npz",'min':max,'max':max+spec.shape[1]})
