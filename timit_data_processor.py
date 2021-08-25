@@ -163,14 +163,11 @@ def load_timit():
     annotation = []
     max = 0
     for spec,label in train_dataloader:
-        print(spec.shape)
-        print(label.shape)
-        exit()
         path = os.path.join(args.path, "data/npz/TRAIN/", f"data{count}")
         np.savez(path, spec=spec, label=label)
-        annotation.append({'path':f"{path}.npz",'min':max,'max':max+spec.shape[1]})
+        annotation.append({'path':f"{path}.npz",'min':max,'max':max+spec.shape[2]})
         count += 1
-        max += spec.shape[1]
+        max += spec.shape[2]
 
     df = pd.DataFrame(annotation)
     df.to_csv(os.path.join(args.path, 'train_npz.csv'))
@@ -181,9 +178,9 @@ def load_timit():
     for spec,label in test_dataloader:
         path = os.path.join(args.path, "data/npz/TEST/", f"data{count}")
         np.savez(path, spec=spec, label=label)
-        annotation.append({'path':f"{path}.npz",'min':max,'max':max+spec.shape[1]})
+        annotation.append({'path':f"{path}.npz",'min':max,'max':max+spec.shape[2]})
         count += 1
-        max += spec.shape[1]
+        max += spec.shape[2]
 
     df = pd.DataFrame(annotation)
     df.to_csv(os.path.join(args.path, 'test_npz.csv'))
