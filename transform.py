@@ -140,6 +140,7 @@ def main():
     # process args
     parser = argparse.ArgumentParser(description="transform data")
     parser.add_argument('sc', type=str, help="input filename with extension .npz")
+    parser.add_argument('dst', type=str, help="output filename with extension .npz")
     args = parser.parse_args()
 
     npz = np.load(args.sc)
@@ -147,17 +148,19 @@ def main():
     y_train = npz['y_train']
     x_test = npz['x_test']
     y_test = npz['y_test']
-    print(x_train.shape)
-    print(y_train.shape)
-    print(x_test.shape)
-    print(y_test.shape)
-    """
+    
     s2c = Function(utility.spec2ceps)
     vtl = VTL(x_train.shape[0],np.tanh(np.linspace(-0.3,0.3)))
     composed = transforms.Compose([s2c,vtl])
 
     x_train_transformed = composed(x_train)
     x_test_transformed = composed(x_test)
-    """
+
+    print(x_train_transformed.shape)
+    print(x_test_transformed.shape)
+    
+    np.savez(args.dst,x_train=x_train_transformed,y_train=y_train,x_test=x_test_transformed,y_test=y_test)
+
+
 if __name__ == "__main__":
     main()
