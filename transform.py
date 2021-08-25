@@ -1,8 +1,11 @@
 import argparse
 
 import numpy as np
+from numpy.core.function_base import linspace
 from scipy import signal
 import soundfile
+import torch
+from torchvision import transforms
 
 import utility
 
@@ -133,5 +136,28 @@ def test_vtl():
         soundfile.write(f"result/test_vtl/test{i}.wav",sign_trans,sr)
 
 
+def main():
+    # process args
+    parser = argparse.ArgumentParser(description="transform data")
+    parser.add_argument('sc', type=str, help="input filename with extension .npz")
+    args = parser.parse_args()
+
+    npz = np.load(args.sc)
+    x_train = npz['x_train']
+    y_train = npz['y_train']
+    x_test = npz['x_test']
+    y_test = npz['y_test']
+    print(x_train.shape)
+    print(y_train.shape)
+    print(x_test.shape)
+    print(y_test.shape)
+    """
+    s2c = Function(utility.spec2ceps)
+    vtl = VTL(x_train.shape[0],np.tanh(np.linspace(-0.3,0.3)))
+    composed = transforms.Compose([s2c,vtl])
+
+    x_train_transformed = composed(x_train)
+    x_test_transformed = composed(x_test)
+    """
 if __name__ == "__main__":
-    test_vtl()
+    main()
