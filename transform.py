@@ -113,7 +113,7 @@ def test_vtl():
 
     n_fft = 1024
     sign, sr = soundfile.read(args.sc)
-    spec = signal.stft(sign,sr,return_onesided=False,nperseg=n_fft)[2]
+    spec = signal.stft(sign,sr,nperseg=n_fft)[2]
     ceps = utility.spec2ceps(spec)
     spec = utility.ceps2spec(ceps)
     sign = signal.istft(spec,nperseg=n_fft)[1]
