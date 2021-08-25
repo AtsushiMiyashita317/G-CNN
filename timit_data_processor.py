@@ -161,7 +161,7 @@ def load_timit():
 
     n_fft = 512
     s2c = transform.Function(utility.spec2ceps)
-    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-1,1)))
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.25,0.25,10)))
     composed = transforms.Compose([s2c,vtl])
 
     train_data = Timit(os.path.join(args.path, 'train_data.csv'),
