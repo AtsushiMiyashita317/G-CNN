@@ -144,10 +144,10 @@ def main():
     args = parser.parse_args()
 
     npz = np.load(args.sc)
-    x_train = npz['x_train']
-    y_train = npz['y_train']
-    x_test = npz['x_test']
-    y_test = npz['y_test']
+    x_train = npz['x_train'][:,:10000]
+    y_train = npz['y_train'][:10000]
+    x_test = npz['x_test'][:,:1000]
+    y_test = npz['y_test'][:1000]
     
     s2c = Function(utility.spec2ceps)
     vtl = VTL(x_train.shape[0],np.tanh(np.linspace(-0.3,0.3)))
