@@ -82,6 +82,8 @@ class Timit(Dataset):
 
         self.data_dir = data_dir
         self.n_fft = n_fft
+        self.transform = transform
+        self.target_transform = target_transform
 
     def __len__(self):
         return len(self.df_wav)
