@@ -67,18 +67,18 @@ class VTL(object):
         mat = np.transpose(mat)
         return mat
 
-    def __init__(self, dim, a):
+    def __init__(self, half, a):
         """
             VTL parameter setting
             # Args
-                dim (int): dimension of cepstrum along quefrency axis
+                half (int): dimension of cepstrum along quefrency axis
                 a (float or ndarray, shape=(k,)):
                     warping parameter
         """
         assert np.all(np.abs(a) < 1)
-        self.dim = dim
+        self.dim = (half-1)*2
         self.a = a
-        self.mat = VTL.vtl_mat(dim,a)
+        self.mat = VTL.vtl_mat(self.dim,a)
 
     def __call__(self, input):
         """
