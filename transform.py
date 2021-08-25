@@ -67,7 +67,7 @@ class VTL(object):
         mat = np.transpose(mat)
         return mat
 
-    def __init__(self, half, a):
+    def __init__(self, n_fft, a):
         """
             VTL parameter setting
             # Args
@@ -76,7 +76,7 @@ class VTL(object):
                     warping parameter
         """
         assert np.all(np.abs(a) < 1)
-        self.dim = (half-1)*2
+        self.dim = n_fft
         self.a = a
         self.mat = VTL.vtl_mat(self.dim,a)
 

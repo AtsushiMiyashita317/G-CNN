@@ -7,7 +7,10 @@ import pandas as pd
 import soundfile as sf
 from scipy import signal
 from torch.utils.data import Dataset, DataLoader
-from torchvision import datasets
+from torchvision import datasets,transforms
+
+import utility
+import transform
 
 
 phn_dict = {}
@@ -70,7 +73,7 @@ def feature_extraction(path,csvname,fwfdst):
     return x,y
 
 class Timit(Dataset):
-    def __init__(self, annotations_file, data_dir, n_fft=512):
+    def __init__(self, annotations_file, data_dir, n_fft=512, transform=None, target_transform=None):
         df = pd.read_csv(annotations_file)
         df = df.sort_values('path_from_data_dir')
     
@@ -106,7 +109,10 @@ class Timit(Dataset):
                 phn_list.append(phn)
                 phn_count += 1
             label[begin:end] = phn_dict[phn]
-
+        if self.transform:
+            spec = self.transform(spec)
+        if self.target_transform:
+            label = self.target_transform(label)
         return spec,label
 
 class FramedTimit(Dataset):
@@ -151,10 +157,17 @@ def load_timit():
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
     args = parser.parse_args()
 
+    n_fft = 512
+    s2c = transform.Function(utility.spec2ceps)
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-1,1)))
+    composed = transforms.Compose([s2c,vtl])
+
     train_data = Timit(os.path.join(args.path, 'train_data.csv'),
-                       os.path.join(args.path, 'data/'))   
+                       os.path.join(args.path, 'data/'),
+                       n_fft=n_fft, transform=composed)   
     test_data = Timit(os.path.join(args.path, 'test_data.csv'),
-                      os.path.join(args.path, 'data/'))     
+                      os.path.join(args.path, 'data/'),
+                      n_fft=n_fft, transform=composed)     
 
     train_dataloader = DataLoader(train_data, batch_size=1)
     test_dataloader = DataLoader(test_data, batch_size=1)
