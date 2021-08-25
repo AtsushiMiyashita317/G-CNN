@@ -132,8 +132,8 @@ class FramedTimit(Dataset):
         npz_path = os.path.join(self.npz_dir, df.iat[0, 0])
         local_idx = idx - df.iat[0, 1]
         npz = np.load(npz_path)
-        x = npz['x'][local_idx]
-        y = npz['y'][local_idx]
+        x = npz['x'][...,local_idx]
+        y = npz['y'][...,local_idx]
         if self.transform:
             x = self.transform(x)
         if self.target_transform:
@@ -179,7 +179,7 @@ def load_timit():
     max = 0
     for spec,label in train_dataloader:
         path = os.path.join(args.path, "data/npz/TRAIN/", f"data{count}")
-        np.savez(path, spec=spec, label=label)
+        np.savez(path, spec=spec[0], label=label[0])
         annotation.append({'path':f"{path}.npz",'min':max,'max':max+label.shape[1]})
         count += 1
         max += label.shape[1]
@@ -192,7 +192,7 @@ def load_timit():
     max = 0
     for spec,label in test_dataloader:
         path = os.path.join(args.path, "data/npz/TEST/", f"data{count}")
-        np.savez(path, spec=spec, label=label)
+        np.savez(path, spec=spec[0], label=label[0])
         annotation.append({'path':f"{path}.npz",'min':max,'max':max+label.shape[1]})
         count += 1
         max += label.shape[1]
