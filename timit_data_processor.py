@@ -117,7 +117,8 @@ class Timit(Dataset):
             spec = self.transform(spec)
         if self.target_transform:
             label = self.target_transform(label)
-            
+        print(spec.shape)
+        exit()
         return spec,label
 
 class FramedTimit(Dataset):
@@ -167,8 +168,9 @@ def load_timit():
     vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,32)))
     c2s = transform.Function(utility.ceps2spec)
     mel = transform.MelScale(n_fft,n_mels=64)
+    trans = transform.Function(np.transpose)
 
-    composed = transforms.Compose([s2c,vtl,c2s,mel])
+    composed = transforms.Compose([s2c,vtl,c2s,mel,trans])
 
     train_data = Timit(os.path.join(args.path, 'train_data.csv'),
                        os.path.join(args.path, 'data/'),
