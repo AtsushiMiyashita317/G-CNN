@@ -1,5 +1,6 @@
 import argparse
 
+import librosa
 import numpy as np
 from numpy.core.function_base import linspace
 from scipy import signal
@@ -96,6 +97,13 @@ class VTL(object):
         output = self.mat @ input
         return output
 
+class MelScale(object):
+    def __init__(self, n_fft, sr=16000):
+        self.fb = librosa.filters.mel(sr,n_fft)
+
+    def __call__(self, input):
+        output = self.fb @ input
+        return output
 
 class Function(object):
     def __init__(self, f, *args, **kwargs):
@@ -106,7 +114,7 @@ class Function(object):
     def __call__(self, input):
         output = self.f(input,*self.args,**self.kwargs)
         return output
-
+    
 
 def test_vtl():
     # process args

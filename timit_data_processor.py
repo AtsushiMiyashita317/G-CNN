@@ -117,6 +117,8 @@ class Timit(Dataset):
             spec = self.transform(spec)
         if self.target_transform:
             label = self.target_transform(label)
+        print(spec.shape)
+        exit()
         return spec,label
 
 class FramedTimit(Dataset):
@@ -165,10 +167,9 @@ def load_timit():
     s2c = transform.Function(utility.spec2ceps)
     vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.25,0.25,10)))
     c2s = transform.Function(utility.ceps2spec)
-    tot = transforms.ToTensor()
-    mel = torchaudio.transforms.MelScale(n_stft=n_fft)
+    mel = transform.MelScale(n_fft)
 
-    composed = transforms.Compose([s2c,vtl,c2s,tot,mel])
+    composed = transforms.Compose([s2c,vtl,c2s,mel])
 
     train_data = Timit(os.path.join(args.path, 'train_data.csv'),
                        os.path.join(args.path, 'data/'),
