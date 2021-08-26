@@ -166,7 +166,7 @@ def load_timit():
     vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.25,0.25,10)))
     c2s = transform.Function(utility.ceps2spec)
     tot = transforms.ToTensor()
-    mel = torchaudio.transforms.MelScale()
+    mel = torchaudio.transforms.MelScale(n_stft=n_fft)
 
     composed = transforms.Compose([s2c,vtl,c2s,tot,mel])
 
