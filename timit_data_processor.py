@@ -168,7 +168,7 @@ def load_timit():
     tot = transforms.ToTensor()
     mel = torchaudio.transforms.MelScale()
 
-    composed = transforms.Compose([s2c,vtl,c2s,tot,mel])
+    composed = transforms.Compose([s2c,vtl,c2s,mel])
 
     train_data = Timit(os.path.join(args.path, 'train_data.csv'),
                        os.path.join(args.path, 'data/'),
