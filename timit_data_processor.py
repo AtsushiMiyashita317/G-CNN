@@ -117,8 +117,7 @@ class Timit(Dataset):
             spec = self.transform(spec)
         if self.target_transform:
             label = self.target_transform(label)
-        print(spec.shape)
-        exit()
+        
         return spec,label
 
 class FramedTimit(Dataset):
