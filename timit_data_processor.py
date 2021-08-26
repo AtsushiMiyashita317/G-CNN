@@ -164,9 +164,9 @@ def load_timit():
 
     n_fft = 512
     s2c = transform.Function(utility.spec2ceps)
-    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.25,0.25,10)))
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,32)))
     c2s = transform.Function(utility.ceps2spec)
-    mel = transform.MelScale(n_fft)
+    mel = transform.MelScale(n_fft,n_mels=64)
 
     composed = transforms.Compose([s2c,vtl,c2s,mel])
 

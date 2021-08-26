@@ -98,8 +98,8 @@ class VTL(object):
         return output
 
 class MelScale(object):
-    def __init__(self, n_fft, sr=16000):
-        self.fb = librosa.filters.mel(sr,n_fft)
+    def __init__(self, n_fft, sr=16000, n_mels=128):
+        self.fb = librosa.filters.mel(sr,n_fft,n_mels=n_mels)
 
     def __call__(self, input):
         output = self.fb @ input
