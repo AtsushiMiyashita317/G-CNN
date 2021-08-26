@@ -151,8 +151,8 @@ def test_framedtimit():
     test_data = FramedTimit(os.path.join(args.path, 'test_npz.csv'),
                             os.path.join(args.path, 'data/npz/'))
 
-    train_dataloader = DataLoader(train_data, batch_size=64)
-    test_dataloader = DataLoader(test_data, batch_size=64)
+    train_dataloader = DataLoader(train_data, batch_size=128)
+    test_dataloader = DataLoader(test_data, batch_size=128)
 
     for batch, (X,y) in enumerate(train_dataloader):
         print(f"train batch = {batch}\r")
