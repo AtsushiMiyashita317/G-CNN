@@ -5,7 +5,8 @@ import numpy as np
 import pickle
 import pandas as pd
 import soundfile as sf
-from scipy import signal
+import torch
+import torchaudio
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets,transforms
 
@@ -48,7 +49,7 @@ def feature_extraction(path,csvname,fwfdst):
         assert name_wav == name_phn
 
         sign, sr = sf.read(f"{path}data/{x_df_wav[i]}")
-        spec = signal.stft(sign,sr,nperseg=n_fft)[2]
+        spec = torch.stft(sign,n_fft)
 
         df = pd.read_csv(f"{path}data/{x_df_phn[i]}",delimiter=' ',header=None)
         label = np.zeros(spec.shape[1])
@@ -91,7 +92,7 @@ class Timit(Dataset):
     def __getitem__(self, idx):
         wav_path = os.path.join(self.data_dir, self.df_wav.iat[idx, 5])
         sign, sr = sf.read(wav_path)
-        spec = signal.stft(sign,sr,nperseg=self.n_fft)[2]
+        spec = torch.stft(sign,self.n_fft)
 
         phn_path = os.path.join(self.data_dir, self.df_phn.iat[idx, 5])
         df = pd.read_csv(phn_path, delimiter=' ', header=None)
@@ -162,7 +163,11 @@ def load_timit():
     n_fft = 512
     s2c = transform.Function(utility.spec2ceps)
     vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.25,0.25,10)))
-    composed = transforms.Compose([s2c,vtl])
+    c2s = transform.Function(utility.ceps2spec)
+    istft = transform.Function(torch.istft,n_fft=n_fft)
+    mfcc = torchaudio.transforms.MFCC()
+
+    composed = transforms.Compose([s2c,vtl,c2s,istft,mfcc])
 
     train_data = Timit(os.path.join(args.path, 'train_data.csv'),
                        os.path.join(args.path, 'data/'),
