@@ -2,14 +2,11 @@ import argparse
 import os
 
 import numpy as np
-import pickle
 import pandas as pd
 import soundfile as sf
 from scipy import signal
-import torch
-import torchaudio
 from torch.utils.data import Dataset, DataLoader
-from torchvision import datasets,transforms
+from torchvision import transforms
 
 import utility
 import transform
@@ -18,61 +15,6 @@ import transform
 phn_dict = {}
 phn_list = []
 phn_count = 0
-
-def feature_extraction(path,csvname,fwfdst):
-    """
-    """
-    df = pd.read_csv(path+csvname)
-    
-    df = df.sort_values('path_from_data_dir')
-    
-    df_wav = df[df['filename'].str.endswith('.WAV',na=False)]
-    df_phn = df[df['filename'].str.endswith('.PHN',na=False)]
-
-    x_df_wav = df_wav['path_from_data_dir'].values
-    x_df_phn = df_phn['path_from_data_dir'].values
-    assert len(x_df_wav) == len(x_df_phn)
-
-    n_fft = 512
-    noverlap = n_fft//2
-    x = np.zeros((n_fft//2+1,0))
-    y = np.zeros(0)
-
-    fwf = []
-
-    global phn_dict
-    global phn_list
-    global phn_count
-        
-    for i in range(len(x_df_wav)):
-        name_wav = x_df_wav[i].replace('.WAV','')
-        name_phn = x_df_phn[i].replace('.PHN','')
-        assert name_wav == name_phn
-
-        sign, sr = sf.read(f"{path}data/{x_df_wav[i]}")
-        spec = signal.stft(sign,sr,nperseg=n_fft)[2]
-
-        df = pd.read_csv(f"{path}data/{x_df_phn[i]}",delimiter=' ',header=None)
-        label = np.zeros(spec.shape[1])
-        for i in range(len(df)):
-            begin = df.iat[i,0]//noverlap
-            end = df.iat[i,1]//noverlap
-            phn = df.iat[i,2]
-            if not phn in phn_dict:
-                phn_dict[phn] = phn_count
-                phn_list.append(phn)
-                phn_count += 1
-            label[begin:end] = phn_dict[phn]
-
-        begin = y.shape[0]
-        x = np.concatenate([x,spec],axis=1)
-        y = np.concatenate([y,label],axis=0)
-        end = y.shape[0]
-        fwf.append({'begin':begin,'end':end,'file':x_df_wav[i]})
-    
-    df = pd.DataFrame(fwf)
-    df.to_csv(fwfdst)
-    return x,y
 
 class Timit(Dataset):
     def __init__(self, annotations_file, data_dir, n_fft=512, transform=None, target_transform=None):
@@ -126,37 +68,29 @@ class FramedTimit(Dataset):
         self.npz_dir = npz_dir
         self.transform = transform
         self.target_transform = target_transform
+        self.cache_idx = None
+        self.cache_npz = None
 
     def __len__(self):
         return self.annotations['max'].max()
 
     def __getitem__(self, idx):
-        df = self.annotations[(self.annotations['min']<=idx)&(self.annotations['max']>idx)]
-        npz_path = os.path.join(self.npz_dir, df.iat[0, 0])
-        local_idx = idx - df.iat[0, 1]
-        npz = np.load(npz_path)
-        x = npz['x'][...,local_idx]
-        y = npz['y'][...,local_idx]
+        index = self.annotations.index[(self.annotations['min']<=idx)&(self.annotations['max']>idx)].tolist()[0]
+        if self.cache_idx != index:
+            npz_path = os.path.join(self.npz_dir, self.annotations.at[index, 'path'])
+            self.cache_npz = np.load(npz_path)
+
+        local_idx = idx - self.annotations.at[index, 'min']
+        x = self.cache_npz['spec'][local_idx]
+        y = self.cache_npz['label'][local_idx]
+
         if self.transform:
             x = self.transform(x)
         if self.target_transform:
             y = self.target_transform(y)
+
         return x,y
 
-def main():
-    parser = argparse.ArgumentParser(description="process timit data")
-    parser.add_argument("path", type=str, help="path to the directory that has data-path files")
-    parser.add_argument("dst", type=str, help="feature is saved as the file")
-    args = parser.parse_args()
-
-    x_train,y_train = feature_extraction(args.path,"train_data.csv","train_fwf.csv")
-    x_test,y_test = feature_extraction(args.path,"test_data.csv","test_fwf.csv")
-
-    np.savez(args.dst,x_train=x_train,y_train=y_train,x_test=x_test,y_test=y_test)
-
-    f = open('phn.pickle', 'wb')
-    pickle.dump(phn_list, f)
-    
 def load_timit():
     parser = argparse.ArgumentParser(description="load TIMIT and convert to npz file")
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
@@ -187,7 +121,7 @@ def load_timit():
     for spec,label in train_dataloader:
         path = os.path.join(args.path, "data/npz/TRAIN/", f"data{count}")
         np.savez(path, spec=spec[0], label=label[0])
-        annotation.append({'path':f"{path}.npz",'min':max,'max':max+label.shape[1]})
+        annotation.append({'path':f"TRAIN/data{count}.npz",'min':max,'max':max+label.shape[1]})
         count += 1
         max += label.shape[1]
 
@@ -200,13 +134,31 @@ def load_timit():
     for spec,label in test_dataloader:
         path = os.path.join(args.path, "data/npz/TEST/", f"data{count}")
         np.savez(path, spec=spec[0], label=label[0])
-        annotation.append({'path':f"{path}.npz",'min':max,'max':max+label.shape[1]})
+        annotation.append({'path':f"TEST/data{count}.npz",'min':max,'max':max+label.shape[1]})
         count += 1
         max += label.shape[1]
 
     df = pd.DataFrame(annotation)
     df.to_csv(os.path.join(args.path, 'test_npz.csv'))
 
+def test_framedtimit():
+    parser = argparse.ArgumentParser(description="test class FramedTimit")
+    parser.add_argument("path", type=str, help="path to the directory that has annotation files")
+    args = parser.parse_args()
+
+    train_data = FramedTimit(os.path.join(args.path, 'train_npz.csv'),
+                             os.path.join(args.path, 'data/npz/'))   
+    test_data = FramedTimit(os.path.join(args.path, 'test_npz.csv'),
+                            os.path.join(args.path, 'data/npz/'))
+
+    train_dataloader = DataLoader(train_data, batch_size=64)
+    test_dataloader = DataLoader(test_data, batch_size=64)
+
+    for batch, (X,y) in enumerate(train_dataloader):
+        print(f"train batch = {batch}\r")
+
+    for batch, (X,y) in enumerate(test_dataloader):
+        print(f"test batch = {batch}\r")
 
 if __name__=="__main__":
-    load_timit()
+    test_framedtimit()
