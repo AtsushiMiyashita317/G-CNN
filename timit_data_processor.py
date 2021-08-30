@@ -64,12 +64,14 @@ class Timit(Dataset):
         return spec,label
 
 class TimitTmp(Dataset):
-    def __init__(self, annotations_file):
+    def __init__(self, annotations_file, data_dir):
         df = pd.read_csv(annotations_file)
         df = df.sort_values('path_from_data_dir')
     
         self.df_wav = df[df['filename'].str.endswith('.WAV',na=False)]
         self.df_phn = df[df['filename'].str.endswith('.PHN',na=False)]
+
+        self.data_dir = data_dir
 
     def __len__(self):
         return len(self.df_wav)
@@ -197,8 +199,10 @@ def tmp():
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
     args = parser.parse_args()
 
-    train_data = TimitTmp(os.path.join(args.path, 'train_data.csv'))   
-    test_data = TimitTmp(os.path.join(args.path, 'test_data.csv'))     
+    train_data = Timit(os.path.join(args.path, 'train_data.csv'),
+                       os.path.join(args.path, 'data/'))   
+    test_data = Timit(os.path.join(args.path, 'test_data.csv'),
+                      os.path.join(args.path, 'data/'))  
 
     train_dataloader = DataLoader(train_data, batch_size=1)
     test_dataloader = DataLoader(test_data, batch_size=1)
