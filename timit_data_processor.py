@@ -199,9 +199,9 @@ def tmp():
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
     args = parser.parse_args()
 
-    train_data = Timit(os.path.join(args.path, 'train_data.csv'),
+    train_data = TimitTmp(os.path.join(args.path, 'train_data.csv'),
                        os.path.join(args.path, 'data/'))   
-    test_data = Timit(os.path.join(args.path, 'test_data.csv'),
+    test_data = TimitTmp(os.path.join(args.path, 'test_data.csv'),
                       os.path.join(args.path, 'data/'))  
 
     train_dataloader = DataLoader(train_data, batch_size=1)
