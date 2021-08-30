@@ -212,7 +212,7 @@ def tmp():
 
     for wav_path, phn_path, length in train_dataloader:
         annotation.append({'wav_path':wav_path,'phn_path':phn_path,'length':length})
-        print(f"processing train... count = {count}\r")
+        print(f"processing train... count = {count}\r",end='')
         count += 1
 
     df = pd.DataFrame(annotation)
@@ -223,7 +223,7 @@ def tmp():
 
     for wav_path, phn_path, length in test_dataloader:
         annotation.append({'wav_path':wav_path,'phn_path':phn_path,'length':length})
-        print(f"processing test... count = {count}\r")
+        print(f"processing test... count = {count}\r",end='')
         count += 1
 
     df = pd.DataFrame(annotation)
