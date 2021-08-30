@@ -73,6 +73,8 @@ class TimitTmp(Dataset):
 
         self.data_dir = data_dir
 
+        self.annotations_new = []
+
     def __len__(self):
         return len(self.df_wav)
 
@@ -93,8 +95,13 @@ class TimitTmp(Dataset):
                 phn_dict[phn] = phn_count
                 phn_list.append(phn)
                 phn_count += 1
+
+        self.annotations_new.append({'wav_path':self.df_wav.iat[idx, 5],
+                                     'phn_path':self.df_phn.iat[idx, 5],
+                                     'length':sign.shape[0]})
+        
             
-        return self.df_wav.iat[idx, 5], self.df_phn.iat[idx, 5], sign.shape[0]
+        return sign
 
 class FramedTimit(Dataset):
     def __init__(self, annotations_file, npz_dir, transform=None, target_transform=None):
@@ -208,25 +215,23 @@ def tmp():
     test_dataloader = DataLoader(test_data, batch_size=1)
 
     count = 0
-    annotation = []
-
-    for wav_path, phn_path, length in train_dataloader:
-        annotation.append({'wav_path':wav_path,'phn_path':phn_path,'length':length})
+    
+    for sign in train_dataloader:
         print(f"processing train... count = {count}\r",end='')
         count += 1
 
-    df = pd.DataFrame(annotation)
+    df = pd.DataFrame(train_data.annotations_new)
     df.to_csv(os.path.join(args.path, 'train_annotations.csv'))
+
 
     with open("phn.pickle", "wb") as f:
         pickle.dump((phn_dict,phn_list,phn_count), f)
 
-    for wav_path, phn_path, length in test_dataloader:
-        annotation.append({'wav_path':wav_path,'phn_path':phn_path,'length':length})
+    for sign in test_dataloader:
         print(f"processing test... count = {count}\r",end='')
         count += 1
 
-    df = pd.DataFrame(annotation)
+    df = pd.DataFrame(test_data.annotations_new)
     df.to_csv(os.path.join(args.path, 'test_annotations.csv'))
 
 if __name__=="__main__":
