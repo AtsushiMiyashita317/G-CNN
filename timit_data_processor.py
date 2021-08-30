@@ -1,5 +1,6 @@
 import argparse
 import os
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -61,6 +62,37 @@ class Timit(Dataset):
             label = self.target_transform(label)
         
         return spec,label
+
+class TimitTmp(Dataset):
+    def __init__(self, annotations_file):
+        df = pd.read_csv(annotations_file)
+        df = df.sort_values('path_from_data_dir')
+    
+        self.df_wav = df[df['filename'].str.endswith('.WAV',na=False)]
+        self.df_phn = df[df['filename'].str.endswith('.PHN',na=False)]
+
+    def __len__(self):
+        return len(self.df_wav)
+
+    def __getitem__(self, idx):
+        wav_path = os.path.join(self.data_dir, self.df_wav.iat[idx, 5])
+        sign, sr = sf.read(wav_path)
+
+        phn_path = os.path.join(self.data_dir, self.df_phn.iat[idx, 5])
+        df = pd.read_csv(phn_path, delimiter=' ', header=None)
+
+        global phn_dict
+        global phn_list
+        global phn_count
+
+        for i in range(len(df)):
+            phn = df.iat[i,2]
+            if not phn in phn_dict:
+                phn_dict[phn] = phn_count
+                phn_list.append(phn)
+                phn_count += 1
+            
+        return self.df_wav.iat[idx, 5], self.df_phn.iat[idx, 5], sign.shape[0]
 
 class FramedTimit(Dataset):
     def __init__(self, annotations_file, npz_dir, transform=None, target_transform=None):
@@ -160,5 +192,38 @@ def test_framedtimit():
     for batch, (X,y) in enumerate(test_dataloader):
         print(f"test batch = {batch}\r")
 
+def tmp():
+    parser = argparse.ArgumentParser(description="load TIMIT and convert to npz file")
+    parser.add_argument("path", type=str, help="path to the directory that has annotation files")
+    args = parser.parse_args()
+
+    train_data = TimitTmp(os.path.join(args.path, 'train_data.csv'))   
+    test_data = TimitTmp(os.path.join(args.path, 'test_data.csv'))     
+
+    train_dataloader = DataLoader(train_data, batch_size=1)
+    test_dataloader = DataLoader(test_data, batch_size=1)
+
+    count = 0
+    annotation = []
+
+    for wav_path, phn_path, length in train_dataloader:
+        annotation.append({'wav_path':wav_path,'phn_path':phn_path,'length':length})
+        print(f"processing train... count = {count}\r")
+        count += 1
+
+    df = pd.DataFrame(annotation)
+    df.to_csv(os.path.join(args.path, 'train_annotations.csv'))
+
+    with open("phn.pickle", "wb") as f:
+        pickle.dump((phn_dict,phn_list,phn_count), f)
+
+    for wav_path, phn_path, length in test_dataloader:
+        annotation.append({'wav_path':wav_path,'phn_path':phn_path,'length':length})
+        print(f"processing test... count = {count}\r")
+        count += 1
+
+    df = pd.DataFrame(annotation)
+    df.to_csv(os.path.join(args.path, 'test_annotations.csv'))
+
 if __name__=="__main__":
-    test_framedtimit()
+    tmp()
