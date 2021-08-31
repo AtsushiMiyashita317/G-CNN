@@ -266,8 +266,8 @@ def main():
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
     args = parser.parse_args()
 
-    train_data = Timit(args.path,'train_npz.csv','data/npz/')
-    test_data = Timit(args.path,'test_npz.csv','data/npz/')
+    train_data = Timit(args.path,'train_npz.csv','phn.pickle','data/npz/')
+    test_data = Timit(args.path,'test_npz.csv','phn.pickle','data/npz/')
 
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
