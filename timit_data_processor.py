@@ -64,54 +64,64 @@ class TimitOld(Dataset):
         return spec,label
 
 class Timit(Dataset):
-    def __init__(self, annotations_file, data_dir, n_fft=512, transform=None, target_transform=None):
-        self.df = pd.read_csv(annotations_file)
+    def __init__(self, root, annotations_file, phncode_file, data_dir, n_fft=512, transform=None, target_transform=None):
+        self.annotations = pd.read_csv(os.path.join(root, annotations_file))
 
         n_shift = n_fft//2
 
-        self.df['n_frame'] = (self.df['length']+n_shift-1)//n_shift+1
-        self.df['maxidx'] = self.df['n_frame'].cumsum()
+        self.annotations['n_frame'] = (self.annotations['length']+n_shift-1)//n_shift+1
+        self.annotations['maxidx'] = self.annotations['n_frame'].cumsum()
+        self.annotations['minidx'] = self.annotations['maxidx'].shift()
+        self.annotations.at[self.annotations.index[0],'minidx'] = 0
+
+        with open(os.path.join(root, phncode_file),'rb') as f:
+            self.phn_dict,self.phn_list,self.phn_count = pickle.load(f)
         
-        self.data_dir = data_dir
+        self.data_dir = os.path.join(root, data_dir)
         self.n_fft = n_fft
         self.transform = transform
         self.target_transform = target_transform
         self.cache_spec = None
         self.cache_label = None
-        self.range = (0,0)
+        self.cache_range = (0,0)
 
     def __len__(self):
-        return self.len
+        return self.annotations['maxidx'].max()
 
     def __getitem__(self, idx):
-        wav_path = os.path.join(self.data_dir, self.df_wav.iat[idx, 1])
-        sign, sr = sf.read(wav_path)
-        spec = signal.stft(sign,sr,nperseg=self.n_fft)[2]
+        if not (self.cache_range[0]<=idx and idx<self.cache_range[1]):
+            cand = self.annotations[self.annotations['maxidx']>idx]
+            
+            wav_path = wav_path = os.path.join(self.data_dir, cand.iat[0, 0])
+            sign, sr = sf.read(wav_path)
+            self.cache_spec = signal.stft(sign,sr,nperseg=self.n_fft)[2]
 
-        phn_path = os.path.join(self.data_dir, self.df_phn.iat[idx, 5])
-        df = pd.read_csv(phn_path, delimiter=' ', header=None)
-        label = np.zeros(spec.shape[1])
-        noverlap = self.n_fft//2
+            phn_path = os.path.join(self.data_dir, cand.iat[0, 1])
+            df_phn = pd.read_csv(phn_path, delimiter=' ', header=None)
+            self.cache_label = np.zeros(self.cache_spec.shape[1])
+            noverlap = self.n_fft//2
 
-        global phn_dict
-        global phn_list
-        global phn_count
+            for i in range(len(df_phn)):
+                begin = df_phn.iat[i,0]//noverlap
+                end = df_phn.iat[i,1]//noverlap
+                phn = df_phn.iat[i,2]
+                assert phn in self.phn_dict
+                    
+                self.cache_label[begin:end] = phn_dict[phn]
 
-        for i in range(len(df)):
-            begin = df.iat[i,0]//noverlap
-            end = df.iat[i,1]//noverlap
-            phn = df.iat[i,2]
-            if not phn in phn_dict:
-                phn_dict[phn] = phn_count
-                phn_list.append(phn)
-                phn_count += 1
-            label[begin:end] = phn_dict[phn]
+            self.cache_range = (cand.iat[0, 4],cand.iat[0, 3])
+        
+        index = idx - self.cache_range[0]
+
+        frame = self.cache_spec[...,index]
+        label = self.cache_label[...,index]
+
         if self.transform:
-            spec = self.transform(spec)
+            frame = self.transform(frame)
         if self.target_transform:
             label = self.target_transform(label)
-        
-        return spec,label
+
+        return frame, label
 
 class TimitTmp(Dataset):
     def __init__(self, annotations_file, data_dir):
