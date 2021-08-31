@@ -64,7 +64,7 @@ class TimitOld(Dataset):
         return spec,label
 
 class Timit(Dataset):
-    def __init__(self, root, annotations_file, phncode_file, data_dir, n_fft=512, transform=None, target_transform=None):
+    def __init__(self, root, annotations_file, phncode_file, data_dir, n_fft=512, transform1=None, transform2=None, target_transform=None):
         self.annotations = pd.read_csv(os.path.join(root, annotations_file))
 
         n_shift = n_fft//2
@@ -73,13 +73,15 @@ class Timit(Dataset):
         self.annotations['maxidx'] = self.annotations['n_frame'].cumsum()
         self.annotations['minidx'] = self.annotations['maxidx'].shift()
         self.annotations.at[self.annotations.index[0],'minidx'] = 0
+        self.annotations['minidx'] = self.annotations['minidx'].astype(np.int64)
 
         with open(os.path.join(root, phncode_file),'rb') as f:
             self.phn_dict,self.phn_list,self.phn_count = pickle.load(f)
         
         self.data_dir = os.path.join(root, data_dir)
         self.n_fft = n_fft
-        self.transform = transform
+        self.transform1 = transform1
+        self.transform2 = transform2
         self.target_transform = target_transform
         self.cache_spec = None
         self.cache_label = None
@@ -109,15 +111,18 @@ class Timit(Dataset):
                     
                 self.cache_label[begin:end] = self.phn_dict[phn]
 
-            self.cache_range = (cand.iat[0, 5],cand.iat[0, 4])
+            if self.transform1:
+                self.cache_spec = self.transform1(self.cache_spec)    
+
+            self.cache_range = (cand.iat[0, 6],cand.iat[0, 5])
         
         index = idx - self.cache_range[0]
 
         frame = self.cache_spec[...,index]
         label = self.cache_label[...,index]
 
-        if self.transform:
-            frame = self.transform(frame)
+        if self.transform2:
+            frame = self.transform2(frame)
         if self.target_transform:
             label = self.target_transform(label)
 
@@ -266,8 +271,19 @@ def main():
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
     args = parser.parse_args()
 
-    train_data = Timit(args.path,'train_annotations.csv','phn.pickle','data/')
-    test_data = Timit(args.path,'test_annotations.csv','phn.pickle','data/')
+    n_fft = 512
+    s2c = transform.Function(utility.spec2ceps)
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,32)))
+    c2s = transform.Function(utility.ceps2spec)
+    mel = transform.MelScale(n_fft,n_mels=64)
+    trans = transform.Function(np.transpose)
+    addc = transform.Function(np.expand_dims, axis=0)
+
+    composed1 = transforms.Compose([s2c,vtl,c2s,mel])
+    composed2 = transforms.Compose([trans,addc])
+
+    train_data = Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=addc)
+    test_data = Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=addc)
 
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)

@@ -1,13 +1,16 @@
 import argparse
 import os
 
+import numpy as np
 import torch
 from torch import nn
 from torch.nn.modules import linear
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
+import transform
 import timit_data_processor
+import utility
 
 
 class Model(nn.Module):
@@ -38,14 +41,19 @@ def main():
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
     args = parser.parse_args()
 
-    train_data = timit_data_processor.FramedTimit(
-        os.path.join(args.path, 'train_npz.csv'),
-        os.path.join(args.path, 'data/npz/')
-        )   
-    test_data = timit_data_processor.FramedTimit(
-        os.path.join(args.path, 'test_npz.csv'),
-        os.path.join(args.path, 'data/npz/')
-        )
+    n_fft = 512
+    s2c = transform.Function(utility.spec2ceps)
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,32)))
+    c2s = transform.Function(utility.ceps2spec)
+    mel = transform.MelScale(n_fft,n_mels=64)
+    trans = transform.Function(np.transpose)
+    addc = transform.Function(np.expand_dims, axis=0)
+
+    composed1 = transforms.Compose([s2c,vtl,c2s,mel])
+    composed2 = transforms.Compose([trans,addc])
+
+    train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=addc)
+    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=addc)
 
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
