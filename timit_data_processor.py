@@ -92,11 +92,11 @@ class Timit(Dataset):
         if not (self.cache_range[0]<=idx and idx<self.cache_range[1]):
             cand = self.annotations[self.annotations['maxidx']>idx]
             
-            wav_path = wav_path = os.path.join(self.data_dir, cand.iat[0, 0])
+            wav_path = os.path.join(self.data_dir, cand.iat[0, 1])
             sign, sr = sf.read(wav_path)
             self.cache_spec = signal.stft(sign,sr,nperseg=self.n_fft)[2]
 
-            phn_path = os.path.join(self.data_dir, cand.iat[0, 1])
+            phn_path = os.path.join(self.data_dir, cand.iat[0, 2])
             df_phn = pd.read_csv(phn_path, delimiter=' ', header=None)
             self.cache_label = np.zeros(self.cache_spec.shape[1])
             noverlap = self.n_fft//2
@@ -109,7 +109,7 @@ class Timit(Dataset):
                     
                 self.cache_label[begin:end] = phn_dict[phn]
 
-            self.cache_range = (cand.iat[0, 4],cand.iat[0, 3])
+            self.cache_range = (cand.iat[0, 5],cand.iat[0, 4])
         
         index = idx - self.cache_range[0]
 
