@@ -261,6 +261,23 @@ def test_framedtimit():
     for batch, (X,y) in enumerate(test_dataloader):
         print(f"test batch = {batch}\r")
 
+def main():
+    parser = argparse.ArgumentParser(description="test class FramedTimit")
+    parser.add_argument("path", type=str, help="path to the directory that has annotation files")
+    args = parser.parse_args()
+
+    train_data = FramedTimit(args.path,'train_npz.csv','data/npz/')
+    test_data = FramedTimit(args.path,'test_npz.csv','data/npz/')
+
+    train_dataloader = DataLoader(train_data, batch_size=128)
+    test_dataloader = DataLoader(test_data, batch_size=128)
+
+    for batch, (X,y) in enumerate(train_dataloader):
+        print(f"train batch = {batch}\r")
+
+    for batch, (X,y) in enumerate(test_dataloader):
+        print(f"test batch = {batch}\r")
+
 def tmp():
     parser = argparse.ArgumentParser(description="load TIMIT and convert to npz file")
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
@@ -297,4 +314,4 @@ def tmp():
     df.to_csv(os.path.join(args.path, 'test_annotations.csv'))
 
 if __name__=="__main__":
-    tmp()
+    main()
