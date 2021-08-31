@@ -17,7 +17,7 @@ phn_dict = {}
 phn_list = []
 phn_count = 0
 
-class Timit(Dataset):
+class TimitOld(Dataset):
     def __init__(self, annotations_file, data_dir, n_fft=512, transform=None, target_transform=None):
         df = pd.read_csv(annotations_file)
         df = df.sort_values('path_from_data_dir')
@@ -35,6 +35,56 @@ class Timit(Dataset):
 
     def __getitem__(self, idx):
         wav_path = os.path.join(self.data_dir, self.df_wav.iat[idx, 5])
+        sign, sr = sf.read(wav_path)
+        spec = signal.stft(sign,sr,nperseg=self.n_fft)[2]
+
+        phn_path = os.path.join(self.data_dir, self.df_phn.iat[idx, 5])
+        df = pd.read_csv(phn_path, delimiter=' ', header=None)
+        label = np.zeros(spec.shape[1])
+        noverlap = self.n_fft//2
+
+        global phn_dict
+        global phn_list
+        global phn_count
+
+        for i in range(len(df)):
+            begin = df.iat[i,0]//noverlap
+            end = df.iat[i,1]//noverlap
+            phn = df.iat[i,2]
+            if not phn in phn_dict:
+                phn_dict[phn] = phn_count
+                phn_list.append(phn)
+                phn_count += 1
+            label[begin:end] = phn_dict[phn]
+        if self.transform:
+            spec = self.transform(spec)
+        if self.target_transform:
+            label = self.target_transform(label)
+        
+        return spec,label
+
+class Timit(Dataset):
+    def __init__(self, annotations_file, data_dir, n_fft=512, transform=None, target_transform=None):
+        self.df = pd.read_csv(annotations_file)
+
+        n_shift = n_fft//2
+
+        self.df['n_frame'] = (self.df['length']+n_shift-1)//n_shift+1
+        self.df['maxidx'] = self.df['n_frame'].cumsum()
+        
+        self.data_dir = data_dir
+        self.n_fft = n_fft
+        self.transform = transform
+        self.target_transform = target_transform
+        self.cache_spec = None
+        self.cache_label = None
+        self.range = (0,0)
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        wav_path = os.path.join(self.data_dir, self.df_wav.iat[idx, 1])
         sign, sr = sf.read(wav_path)
         spec = signal.stft(sign,sr,nperseg=self.n_fft)[2]
 
@@ -226,6 +276,8 @@ def tmp():
 
     with open("phn.pickle", "wb") as f:
         pickle.dump((phn_dict,phn_list,phn_count), f)
+
+    print('\n')
 
     for sign in test_dataloader:
         print(f"processing test... count = {count}\r",end='')
