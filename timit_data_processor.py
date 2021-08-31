@@ -107,7 +107,7 @@ class Timit(Dataset):
                 phn = df_phn.iat[i,2]
                 assert phn in self.phn_dict
                     
-                self.cache_label[begin:end] = phn_dict[phn]
+                self.cache_label[begin:end] = self.phn_dict[phn]
 
             self.cache_range = (cand.iat[0, 5],cand.iat[0, 4])
         
