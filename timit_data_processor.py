@@ -108,6 +108,7 @@ class Timit(Dataset):
                 self.cache_spec = self.transform1(self.cache_spec)    
 
             self.cache_range = (cand.iat[0, 5],cand.iat[0, 4])
+            print(self.cache_range)
         
         frames = np.zeros(self.cache_spec.shape[:-1]+(self.n_frame,),dtype=np.complex128)
         index = idx - self.cache_range[0]
