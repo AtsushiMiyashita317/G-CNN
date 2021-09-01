@@ -4,6 +4,7 @@ import os
 import numpy as np
 import torch
 from torch import nn
+from torch._C import dtype
 from torch.nn.modules import linear
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
@@ -38,7 +39,7 @@ class Model(nn.Module):
 def train(dataloader, model, loss_fn, optimizer, device):
     size = len(dataloader.dataset)
     for batch, (X, y) in enumerate(dataloader):
-        X, y = X.to(device, dtype=torch.float), y.to(device)
+        X, y = X.to(device, dtype=torch.float), y.to(device, dtype=torch.long)
         
         # 損失誤差を計算
         pred = model(X)
@@ -59,7 +60,8 @@ def test(dataloader, model, loss_fn, device):
     test_loss, correct = 0, 0
     with torch.no_grad():
         for X, y in dataloader:
-            X, y = X.to(device), y.to(device)
+            X, y = X.to(device, dtype=torch.float), y.to(device, dtype=torch.long)
+
             pred = model(X)
             test_loss += loss_fn(pred, y).item()
             correct += (pred.argmax(1) == y).type(torch.float).sum().item()
