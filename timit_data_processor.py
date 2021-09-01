@@ -118,7 +118,7 @@ class Timit(Dataset):
         lower_dst = lower_sc - lower
         upper_dst = self.n_frame - (upper - upper_sc)
 
-        frames[lower_dst:upper_dst] = self.cache_spec[...,lower_sc:upper_sc]
+        frames[...,lower_dst:upper_dst] = self.cache_spec[...,lower_sc:upper_sc]
         label = self.cache_label[...,index]
 
         if self.transform2:
