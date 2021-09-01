@@ -364,7 +364,7 @@ def tmp():
     with open("phn.pickle", "wb") as f:
         pickle.dump((phn_dict,phn_list,phn_count), f)
 
-    print('\n')
+    print('\r',end='')
 
     for sign in test_dataloader:
         print(f"processing test... count = {count}\r",end='')
