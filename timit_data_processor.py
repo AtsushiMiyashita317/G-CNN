@@ -117,6 +117,7 @@ class Timit(Dataset):
         frames = np.zeros(self.cache_spec.shape[:-1]+(self.n_frame,),dtype=np.complex128)
         local_idx = idx - self.cache_range[0]
         centor = self.cache_centor[local_idx]
+        print(type(centor))
         lower = centor - self.n_frame//2
         upper = centor + (self.n_frame + 1)//2
         lower_sc = max(0, lower)
