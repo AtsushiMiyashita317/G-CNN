@@ -382,8 +382,13 @@ def metrics():
     for batch, x in enumerate(train_dataloader):
         print(f"train batch = {batch}\r")
 
+    train_data.metrics.to_csv('train_metrics.csv')
+
     for batch, x in enumerate(test_dataloader):
         print(f"test batch = {batch}\r")
+
+    test_data.metrics.to_csv('test_metrics.csv')
+
 
 if __name__=="__main__":
     metrics()
