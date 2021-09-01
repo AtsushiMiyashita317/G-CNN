@@ -44,6 +44,7 @@ def train(dataloader, model, loss_fn, optimizer, device):
         # 損失誤差を計算
         pred = model(X)
         loss = loss_fn(pred, y)
+        acc = (pred.argmax(1) == y).type(torch.float).sum().item()/size
         
         # バックプロパゲーション
         optimizer.zero_grad()
@@ -52,7 +53,7 @@ def train(dataloader, model, loss_fn, optimizer, device):
 
         if batch % 1 == 0:
             loss, current = loss.item(), batch * len(X)
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+            print(f"loss: {loss:>7f} acc: {acc:>3f} [{current:>5d}/{size:>5d}]")
 
 def test(dataloader, model, loss_fn, device):
     size = len(dataloader.dataset)
