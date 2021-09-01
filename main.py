@@ -44,7 +44,7 @@ def train(dataloader, model, loss_fn, optimizer, device):
         # 損失誤差を計算
         pred = model(X)
         loss = loss_fn(pred, y)
-        acc = (pred.argmax(1) == y).type(torch.float).sum().item()/size
+        acc = (pred.argmax(1) == y).type(torch.float).sum().item()/y.shape[0]
         
         # バックプロパゲーション
         optimizer.zero_grad()
