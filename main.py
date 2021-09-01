@@ -87,7 +87,7 @@ def main():
     composed1 = transforms.Compose([s2c,vtl,c2s,mel,abs,addc])
     composed2 = transforms.Compose([trans,addc])
 
-    train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=65536)
+    train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=5120)
     test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=512)
 
     train_dataloader = DataLoader(train_data, batch_size=512)
