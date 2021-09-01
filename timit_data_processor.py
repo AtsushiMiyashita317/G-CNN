@@ -80,6 +80,7 @@ class Timit(Dataset):
         self.cache_spec = None
         self.cache_label = None
         self.cache_range = (0,0)
+        self.cache_centor = None
         self.datasize = datasize
 
     def __len__(self):
@@ -99,10 +100,14 @@ class Timit(Dataset):
             phn_path = os.path.join(self.data_dir, cand.iat[0, 2])
             df_phn = pd.read_csv(phn_path, delimiter=' ', header=None)
             self.cache_label = np.zeros(len(df_phn))
+            self.cache_centor = np.zeros(len(df_phn))
 
             for i in range(len(df_phn)):
+                begin = df_phn.iat[i,0]
+                end = df_phn.iat[i,1]
                 phn = df_phn.iat[i,2]
                 self.cache_label[i] = self.phn_dict[phn]
+                self.cache_centor[i] = (begin + end)//2
 
             if self.transform1:
                 self.cache_spec = self.transform1(self.cache_spec)    
@@ -110,16 +115,17 @@ class Timit(Dataset):
             self.cache_range = (cand.iat[0, 5],cand.iat[0, 4])
         
         frames = np.zeros(self.cache_spec.shape[:-1]+(self.n_frame,),dtype=np.complex128)
-        index = idx - self.cache_range[0]
-        lower = index - self.n_frame//2
-        upper = index + (self.n_frame + 1)//2
+        local_idx = idx - self.cache_range[0]
+        centor = self.cache_centor[local_idx]
+        lower = centor - self.n_frame//2
+        upper = centor + (self.n_frame + 1)//2
         lower_sc = max(0, lower)
         upper_sc = min(self.cache_spec.shape[-1], upper)
         lower_dst = lower_sc - lower
         upper_dst = self.n_frame - (upper - upper_sc)
 
         frames[...,lower_dst:upper_dst] = self.cache_spec[...,lower_sc:upper_sc]
-        label = self.cache_label[...,index]
+        label = self.cache_label[...,local_idx]
 
         if self.transform2:
             frames = self.transform2(frames)
