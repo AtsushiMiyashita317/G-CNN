@@ -99,8 +99,8 @@ class Timit(Dataset):
 
             phn_path = os.path.join(self.data_dir, cand.iat[0, 2])
             df_phn = pd.read_csv(phn_path, delimiter=' ', header=None)
-            self.cache_label = np.zeros(len(df_phn))
-            self.cache_centor = np.zeros(len(df_phn))
+            self.cache_label = np.zeros(len(df_phn), dtype=np.int)
+            self.cache_centor = np.zeros(len(df_phn), dtype=np.int)
 
             for i in range(len(df_phn)):
                 begin = df_phn.iat[i,0]
