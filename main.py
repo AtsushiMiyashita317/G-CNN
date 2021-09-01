@@ -49,14 +49,14 @@ def main():
     trans = transform.Function(np.transpose)
     addc = transform.Function(np.expand_dims, axis=0)
 
-    composed1 = transforms.Compose([s2c,vtl,c2s,mel])
+    composed1 = transforms.Compose([s2c,vtl,c2s,mel,addc])
     composed2 = transforms.Compose([trans,addc])
 
-    train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=addc)
-    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=addc)
+    train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1)
+    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1)
 
-    train_dataloader = DataLoader(train_data, batch_size=128)
-    test_dataloader = DataLoader(test_data, batch_size=128)
+    train_dataloader = DataLoader(train_data, batch_size=1)
+    test_dataloader = DataLoader(test_data, batch_size=1)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using {} device".format(device))
