@@ -133,6 +133,39 @@ class Timit(Dataset):
 
         return frame, label
 
+class TimitMetrics(Dataset):
+    def __init__(self, root, annotations_file, phncode_file, data_dir):
+        self.annotations = pd.read_csv(os.path.join(root, annotations_file))
+
+        with open(os.path.join(root, phncode_file),'rb') as f:
+            self.phn_dict,self.phn_list,self.phn_count = pickle.load(f)
+        
+        self.data_dir = os.path.join(root, data_dir)
+        self.metrics = pd.DataFrame(index=self.phn_list, 
+                                    columns=['count',
+                                             'min_length',
+                                             'max_length',
+                                             'sum_length'],
+                                    dtype=np.int)
+        self.metrics.fillna(0,inplace=True)
+
+    def __len__(self):
+        return len(self.annotations)
+
+    def __getitem__(self, idx):
+        phn_path = os.path.join(self.data_dir, self.annotations.iat[idx, 2])
+        df_phn = pd.read_csv(phn_path, delimiter=' ', header=None, names=['begin','end','code'])
+        df_phn['length'] = df_phn['end'] - df_phn['begin']
+
+        for code in self.phn_list:
+            df_code = df_phn[df_phn['code']==code]
+            self.metrics[code,'count'] += len(df_code)
+            self.metrics[code,'min_length'] = min(self.metrics[code,'min_length'], df_code['length'].min(initial=np.inf))
+            self.metrics[code,'max_length'] = max(self.metrics[code,'max_length'], df_code['length'].max(initial=0))
+            self.metrics[code,'sum_length'] += df_code['length'].sum()
+
+        return 0
+
 class TimitTmp(Dataset):
     def __init__(self, annotations_file, data_dir):
         df = pd.read_csv(annotations_file)
@@ -334,5 +367,22 @@ def tmp():
     df = pd.DataFrame(test_data.annotations_new)
     df.to_csv(os.path.join(args.path, 'test_annotations.csv'))
 
+def metrics():
+    parser = argparse.ArgumentParser(description="test class FramedTimit")
+    parser.add_argument("path", type=str, help="path to the directory that has annotation files")
+    args = parser.parse_args()
+
+    train_data = TimitMetrics(args.path,'train_annotations.csv','phn.pickle','data/')
+    test_data = TimitMetrics(args.path,'test_annotations.csv','phn.pickle','data/')
+
+    train_dataloader = DataLoader(train_data, batch_size=1)
+    test_dataloader = DataLoader(test_data, batch_size=1)
+
+    for batch, x in enumerate(train_dataloader):
+        print(f"train batch = {batch}\r")
+
+    for batch, x in enumerate(test_dataloader):
+        print(f"test batch = {batch}\r")
+
 if __name__=="__main__":
-    main()
+    metrics()
