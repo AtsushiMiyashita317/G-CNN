@@ -55,8 +55,8 @@ def main():
     train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1)
     test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1)
 
-    train_dataloader = DataLoader(train_data, batch_size=1)
-    test_dataloader = DataLoader(test_data, batch_size=1)
+    train_dataloader = DataLoader(train_data, batch_size=512)
+    test_dataloader = DataLoader(test_data, batch_size=512)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using {} device".format(device))
@@ -80,7 +80,7 @@ def main():
         loss.backward()
         optimizer.step()
 
-        if batch % 100 == 0:
+        if batch % 1 == 0:
             loss, current = loss.item(), batch * len(X)
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
