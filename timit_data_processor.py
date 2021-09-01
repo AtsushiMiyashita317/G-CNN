@@ -148,6 +148,7 @@ class TimitMetrics(Dataset):
                                              'sum_length'],
                                     dtype=np.int)
         self.metrics.fillna(0,inplace=True)
+        self.metrics['min_length'] = 100000
         self.metrics.info()
 
     def __len__(self):
