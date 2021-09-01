@@ -80,13 +80,14 @@ def main():
     c2s = transform.Function(utility.ceps2spec)
     mel = transform.MelScale(n_fft,n_mels=64)
     trans = transform.Function(np.transpose)
+    abs = transform.Function(np.abs)
     addc = transform.Function(np.expand_dims, axis=0)
 
-    composed1 = transforms.Compose([s2c,vtl,c2s,mel,addc])
+    composed1 = transforms.Compose([s2c,vtl,c2s,mel,abs,addc])
     composed2 = transforms.Compose([trans,addc])
 
     train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=5120)
-    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1)
+    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=512)
 
     train_dataloader = DataLoader(train_data, batch_size=512)
     test_dataloader = DataLoader(test_data, batch_size=512)
