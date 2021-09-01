@@ -68,21 +68,22 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     size = len(train_dataloader.dataset)
-    for batch, (X, y) in enumerate(train_dataloader):
-        X, y = X.to(device=device, dtype=torch.float), y.to(device=device, dtype=torch.long)
-        
-        # 損失誤差を計算
-        pred = model(X)
-        loss = loss_fn(pred, y)
-        
-        # バックプロパゲーション
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    for epoc in range(10):
+        for batch, (X, y) in enumerate(train_dataloader):
+            X, y = X.to(device=device, dtype=torch.float), y.to(device=device, dtype=torch.long)
+            
+            # 損失誤差を計算
+            pred = model(X)
+            loss = loss_fn(pred, y)
+            
+            # バックプロパゲーション
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        if batch % 1 == 0:
-            loss, current = loss.item(), batch * len(X)
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+            if batch % 1 == 0:
+                loss, current = loss.item(), batch * len(X)
+                print(f"epoc: {epoc:>2d} loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
 
 if __name__=="__main__":
