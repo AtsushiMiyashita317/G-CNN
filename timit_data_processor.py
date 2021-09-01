@@ -109,7 +109,7 @@ class Timit(Dataset):
 
             self.cache_range = (cand.iat[0, 5],cand.iat[0, 4])
         
-        frames = np.zeros(self.cache_spec.shape[:-1]+(self.n_frame,))
+        frames = np.zeros(self.cache_spec.shape[:-1]+(self.n_frame,),dtype=np.complex)
         index = idx - self.cache_range[0]
         lower = index - self.n_frame//2
         upper = index + (self.n_frame + 1)//2
@@ -323,7 +323,7 @@ def main():
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
 
-    print(train_dataloader.__iter__().next().shape)
+    print(train_dataloader.__iter__().next()[0].shape)
 
     for batch, (X,y) in enumerate(train_dataloader):
         print(f"processing train... batch = {batch}\r",end='')
