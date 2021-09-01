@@ -203,7 +203,7 @@ class TimitTmp(Dataset):
 
         self.annotations_new.append({'wav_path':self.df_wav.iat[idx, 5],
                                      'phn_path':self.df_phn.iat[idx, 5],
-                                     'length':sign.shape[0]})
+                                     'length':len(df)})
         
             
         return sign
