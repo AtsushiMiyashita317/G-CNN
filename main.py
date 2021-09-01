@@ -90,8 +90,8 @@ def main():
     train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=5120)
     test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=512)
 
-    train_dataloader = DataLoader(train_data, batch_size=512)
-    test_dataloader = DataLoader(test_data, batch_size=512)
+    train_dataloader = DataLoader(train_data, batch_size=128)
+    test_dataloader = DataLoader(test_data, batch_size=128)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using {} device".format(device))
