@@ -323,7 +323,7 @@ def main():
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
 
-    print(train_dataloader[0][0].shape)
+    print(train_dataloader.shape)
 
     for batch, (X,y) in enumerate(train_dataloader):
         print(f"processing train... batch = {batch}\r",end='')
