@@ -84,7 +84,7 @@ def main():
     abs = transform.Function(np.abs)
     addc = transform.Function(np.expand_dims, axis=0)
 
-    composed1 = transforms.Compose([s2c,vtl,c2s,mel,abs,addc])
+    composed1 = transforms.Compose([s2c,vtl,c2s,abs,mel,addc])
     composed2 = transforms.Compose([trans,addc])
 
     train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=5120)
