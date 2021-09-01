@@ -354,6 +354,10 @@ def tmp():
         count += 1
 
     df = pd.DataFrame(train_data.annotations_new)
+    df['maxidx'] = df['length'].cumsum()
+    df['minidx'] = df['maxidx'].shift()
+    df.at[df.index[0],'minidx'] = 0
+    df['minidx'] = df['minidx'].astype(np.int64)
     df.to_csv(os.path.join(args.path, 'train_annotations.csv'))
 
 
@@ -367,6 +371,10 @@ def tmp():
         count += 1
 
     df = pd.DataFrame(test_data.annotations_new)
+    df['maxidx'] = df['length'].cumsum()
+    df['minidx'] = df['maxidx'].shift()
+    df.at[df.index[0],'minidx'] = 0
+    df['minidx'] = df['minidx'].astype(np.int64)
     df.to_csv(os.path.join(args.path, 'test_annotations.csv'))
 
 def metrics():
