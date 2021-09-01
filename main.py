@@ -18,18 +18,18 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
         self.layer_stack = nn.Sequential(
-            nn.Conv2d(1,16,3),
-            nn.Conv2d(16,16,3),
+            nn.Conv2d(1,32,3),
+            nn.Conv2d(32,32,3),
             nn.ReLU(),
             nn.MaxPool2d(2, stride=2),
-            nn.Conv2d(16,16,3),
-            nn.Conv2d(16,16,3),
+            nn.Conv2d(32,32,3),
+            nn.Conv2d(32,32,3),
             nn.ReLU(),
             nn.MaxPool2d(2, stride=2),
             nn.Flatten(),
-            nn.Linear(16*13*5,64),
+            nn.Linear(32*5*5,256),
             nn.ReLU(),
-            nn.Linear(64,61)
+            nn.Linear(256,61)
         )
 
     def forward(self, x):
@@ -79,7 +79,7 @@ def main():
     s2c = transform.Function(utility.spec2ceps)
     vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,32)))
     c2s = transform.Function(utility.ceps2spec)
-    mel = transform.MelScale(n_fft,n_mels=64)
+    mel = transform.MelScale(n_fft,n_mels=32)
     trans = transform.Function(np.transpose)
     abs = transform.Function(np.abs)
     addc = transform.Function(np.expand_dims, axis=0)
@@ -88,7 +88,7 @@ def main():
     composed2 = transforms.Compose([trans,addc])
 
     train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=5120)
-    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=512)
+    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=1024)
 
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
