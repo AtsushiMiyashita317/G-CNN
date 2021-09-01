@@ -64,7 +64,8 @@ class TimitOld(Dataset):
         return spec,label
 
 class Timit(Dataset):
-    def __init__(self, root, annotations_file, phncode_file, data_dir, n_fft=512, transform1=None, transform2=None, target_transform=None):
+    def __init__(self, root, annotations_file, phncode_file, data_dir, 
+                n_fft=512, transform1=None, transform2=None, target_transform=None, datasize=None):
         self.annotations = pd.read_csv(os.path.join(root, annotations_file))
 
         n_shift = n_fft//2
@@ -86,9 +87,13 @@ class Timit(Dataset):
         self.cache_spec = None
         self.cache_label = None
         self.cache_range = (0,0)
+        self.datasize = datasize
 
     def __len__(self):
-        return self.annotations['maxidx'].max()
+        if self.datasize:
+            return self.datasize
+        else:
+            return self.annotations['maxidx'].max()
 
     def __getitem__(self, idx):
         if not (self.cache_range[0]<=idx and idx<self.cache_range[1]):
