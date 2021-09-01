@@ -69,7 +69,7 @@ def main():
 
     size = len(train_dataloader.dataset)
     for batch, (X, y) in enumerate(train_dataloader):
-        X, y = X.to(device=device, dtype=torch.float), y.to(device=device, dtype=torch.float)
+        X, y = X.to(device=device, dtype=torch.float), y.to(device=device, dtype=torch.long)
         
         # 損失誤差を計算
         pred = model(X)
