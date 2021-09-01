@@ -65,7 +65,7 @@ def main():
     print(model)
 
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     size = len(train_dataloader.dataset)
     for batch, (X, y) in enumerate(train_dataloader):
