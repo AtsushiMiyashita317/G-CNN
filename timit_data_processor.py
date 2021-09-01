@@ -314,9 +314,9 @@ def main():
 
     n_fft = 512
     s2c = transform.Function(utility.spec2ceps)
-    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,32)))
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,9)))
     c2s = transform.Function(utility.ceps2spec)
-    mel = transform.MelScale(n_fft,n_mels=64)
+    mel = transform.MelScale(n_fft,n_mels=40)
     trans = transform.Function(np.transpose)
     addc = transform.Function(np.expand_dims, axis=0)
 
