@@ -26,7 +26,7 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(2, stride=2),
             nn.Flatten(),
-            nn.Linear(13*5,64),
+            nn.Linear(16*13*5,64),
             nn.ReLU(),
             nn.Linear(64,61)
         )
