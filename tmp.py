@@ -1,7 +1,5 @@
-import pickle
+import pandas as pd
 
-with open("phn.pickle",'rb') as f:
-    x,y,z = pickle.load(f)
-    print(x)
-    print(y)
-    print(z)
+x = pd.DataFrame(index=[],columns=['a','b'])
+print(min(-8,x['a'].min()))
+print(max(10,x['a'].max()))

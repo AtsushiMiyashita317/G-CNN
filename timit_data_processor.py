@@ -161,9 +161,9 @@ class TimitMetrics(Dataset):
         for code in self.phn_list:
             df_code = df_phn[df_phn['code']==code]
             self.metrics.at[code,'count'] += len(df_code)
-            self.metrics.at[code,'min_length'] = min(self.metrics.at[code,'min_length'], df_code['length'].min(initial=np.inf))
-            self.metrics.at[code,'max_length'] = max(self.metrics.at[code,'max_length'], df_code['length'].max(initial=0))
-            self.metrics.at[code,'sum_length'] += df_code['length'].sum(initial=0)
+            self.metrics.at[code,'min_length'] = min(self.metrics.at[code,'min_length'], df_code['length'].min())
+            self.metrics.at[code,'max_length'] = max(self.metrics.at[code,'max_length'], df_code['length'].max())
+            self.metrics.at[code,'sum_length'] += df_code['length'].sum()
 
         return 0
 
