@@ -174,7 +174,7 @@ class TimitTmp(Dataset):
         df = pd.read_csv(annotations_file)
         df = df.sort_values('path_from_data_dir')
     
-        self.df_wav = df[df['filename'].str.endswith('.WAV',na=False)]
+        self.df_wav = df[df['filename'].str.endswith('.wav',na=False)]
         self.df_phn = df[df['filename'].str.endswith('.PHN',na=False)]
 
         self.data_dir = data_dir
@@ -404,4 +404,4 @@ def metrics():
 
 
 if __name__=="__main__":
-    main()
+    tmp()

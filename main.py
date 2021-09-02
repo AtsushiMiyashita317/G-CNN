@@ -4,24 +4,24 @@ import os
 import numpy as np
 import torch
 from torch import nn
-from torch._C import dtype
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+from torchvision import transforms
 
 import transform
 import timit_data_processor
-import utility
 
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
         self.layer_stack = nn.Sequential(
-            nn.Conv2d(15,91,(8,3)),
+            nn.Conv2d(15,6,(8,3)),
             nn.ReLU(),
-            nn.MaxPool2d((6,7), stride=(6,7)),
+            nn.MaxPool2d((5,7), stride=(5,7)),
             nn.Flatten(),
-            nn.Linear(91*5*1,1024),
+            nn.Linear(6*6*1,1024),
+            nn.ReLU(),
+            nn.Linear(1024,1024),
             nn.ReLU(),
             nn.Linear(1024,61),
             nn.ReLU(),
@@ -46,7 +46,7 @@ def train(dataloader, model, loss_fn, optimizer, device):
         loss.backward()
         optimizer.step()
 
-        if batch % 1 == 0:
+        if batch % 100 == 0:
             loss, current = loss.item(), batch * len(X)
             print(f"loss: {loss:>7f} acc: {acc:>3f} [{current:>5d}/{size:>5d}]")
 
@@ -81,9 +81,9 @@ def main():
     composed1 = transforms.Compose([vtl,mel])
 
     train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',
-                                            n_fft=n_fft,transform1=composed1,transform2=trans,datasize=512)
+                                            n_fft=n_fft,transform1=composed1,transform2=trans)
     test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',
-                                           n_fft=n_fft,transform1=composed1,transform2=trans,datasize=1024)
+                                           n_fft=n_fft,transform1=composed1,transform2=trans)
 
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
@@ -95,13 +95,13 @@ def main():
     print(model)
 
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
 
     epochs = 100
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train(train_dataloader, model, loss_fn, optimizer, device)
-        # test(test_dataloader, model, loss_fn, device)
+        test(test_dataloader, model, loss_fn, device)
     print("Done!")
 
 
