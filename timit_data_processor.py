@@ -313,7 +313,7 @@ def main():
     args = parser.parse_args()
 
     n_fft = 512
-    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,9)))
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,9)),dropphase=True)
     mel = transform.MelScale(n_fft,n_mels=40)
     trans = transform.Function(np.transpose)
     addc = transform.Function(np.expand_dims, axis=0)
