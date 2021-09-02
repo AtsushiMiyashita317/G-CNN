@@ -5,7 +5,6 @@ import numpy as np
 import torch
 from torch import nn
 from torch._C import dtype
-from torch.nn.modules import linear
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
@@ -18,18 +17,14 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
         self.layer_stack = nn.Sequential(
-            nn.Conv2d(1,32,(3,8)),
-            nn.Conv2d(32,32,(3,8)),
+            nn.Conv2d(15,91,(8,3)),
             nn.ReLU(),
-            nn.MaxPool2d(2, stride=2),
-            nn.Conv2d(32,32,3),
-            nn.Conv2d(32,32,3),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride=2),
+            nn.MaxPool2d((6,7), stride=(6,7)),
             nn.Flatten(),
-            nn.Linear(32*5*5,256),
+            nn.Linear(91*5*1,1024),
             nn.ReLU(),
-            nn.Linear(256,61)
+            nn.Linear(1024,61),
+            nn.ReLU(),
         )
 
     def forward(self, x):
@@ -55,6 +50,7 @@ def train(dataloader, model, loss_fn, optimizer, device):
             loss, current = loss.item(), batch * len(X)
             print(f"loss: {loss:>7f} acc: {acc:>3f} [{current:>5d}/{size:>5d}]")
 
+
 def test(dataloader, model, loss_fn, device):
     size = len(dataloader.dataset)
     model.eval()
@@ -76,14 +72,18 @@ def main():
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
     args = parser.parse_args()
 
-    n_fft = 512
-    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,9)))
+    n_fft = 256
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,9)),dropphase=True)
     mel = transform.MelScale(n_fft,n_mels=40)
+    trans = transform.Function(np.transpose)
+
 
     composed1 = transforms.Compose([vtl,mel])
 
-    train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=5120)
-    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=1024)
+    train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',
+                                            n_fft=n_fft,transform1=composed1,transform2=trans,datasize=512)
+    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',
+                                           n_fft=n_fft,transform1=composed1,transform2=trans,datasize=1024)
 
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
@@ -95,13 +95,13 @@ def main():
     print(model)
 
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1)
 
     epochs = 100
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train(train_dataloader, model, loss_fn, optimizer, device)
-        test(test_dataloader, model, loss_fn, device)
+        # test(test_dataloader, model, loss_fn, device)
     print("Done!")
 
 
