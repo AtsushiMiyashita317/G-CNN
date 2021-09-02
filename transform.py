@@ -55,20 +55,15 @@ class VTL(object):
         else:
             mat = np.zeros((dim,dim,a.size))
         
-        half = dim//2+1
-        filt = np.zeros((half,a.size))
         mat[0,0] = 1
-        filt[0] = 1
-        for i in range(1,half):
-            filt = VTL.filtfilt(filt,a)
-            mat[i,:half] = filt
-            mat[-i,0] = filt[0]
-            mat[-i,:-half:-1] = filt[1:]
+
+        for i in range(1,dim):
+            mat[i] = VTL.filtfilt(mat[i-1],a)
 
         mat = np.transpose(mat)
         return mat
 
-    def __init__(self, n_fft, a):
+    def __init__(self, n_fft, a, dropphase=False):
         """
             VTL parameter setting
             # Args
@@ -77,25 +72,42 @@ class VTL(object):
                     warping parameter
         """
         assert np.all(np.abs(a) < 1)
-        self.dim = n_fft
+        self.dim = n_fft//2 + 1
         self.a = a
+        self.dropphase = dropphase
         self.mat = VTL.vtl_mat(self.dim,a)
 
-    def __call__(self, input):
+    def __call__(self, spec):
         """
             Compose transform
             # Args
-                ceps (ndarray, axis=(...,quef,frame)):
-                    input cepstrum
+                spec (ndarray, axis=(...,freq,time)):
+                    input spectrum
             # Returns
-                ceps_trans (ndarray, axis=((k,)...,quef,frame)):
-                    transformed cepstrum
+                spec_trans (ndarray, axis=((k,)...,freq,time)):
+                    transformed spectrum
         """
         # commentout after test
         # assert self.dim == input.shape[0]
 
-        output = self.mat @ input
-        return output
+        ceps = utility.spec2ceps(spec, self.dropphase)
+
+        ceps_trans = np.zeros(self.a.shape + ceps.shape)
+        if self.dropphase:
+            ceps_trans[:,:self.dim] = self.mat @ ceps[:self.dim]
+            ceps_trans[:,-1:1-self.dim:-1] = ceps_trans[:,1:self.dim-1]
+        else:
+            positive = ceps[:self.dim]
+            negative = np.roll(ceps,-1,axis=0)[-1:-self.dim-1:-1]
+            ceps_trans[:,:self.dim] = self.mat @ positive
+            ceps_trans[:,-1:1-self.dim:-1] = (self.mat @ negative)[:,1:self.dim-1]
+
+        spec_trans = utility.ceps2spec(ceps_trans)
+
+        if self.dropphase:
+            spec_trans = np.abs(spec_trans)
+
+        return spec_trans
 
 class MelScale(object):
     def __init__(self, n_fft, sr=16000, n_mels=128):
@@ -125,20 +137,15 @@ def test_vtl():
     n_fft = 1024
     sign, sr = soundfile.read(args.sc)
     spec = signal.stft(sign,sr,nperseg=n_fft)[2]
-    ceps = utility.spec2ceps(spec)
-    spec = utility.ceps2spec(ceps)
-    sign = signal.istft(spec,nperseg=n_fft)[1]
-    soundfile.write(f"result/test_vtl/test.wav",sign,sr)
-
-    dim = ceps.shape[0]
+    
+    dim = n_fft//2 + 1
     a = np.array([-0.2, -0.1, 0, 0.1, 0.2])
-    vtl = VTL(dim, a)
+    vtl = VTL(n_fft, a, dropphase=True)
     assert vtl.mat.shape == (a.size,dim,dim)
 
-    ceps_trans = vtl(ceps)
-    assert ceps_trans.shape == a.shape + ceps.shape
+    spec_trans = vtl(spec)
+    assert spec_trans.shape == a.shape + spec.shape
 
-    spec_trans = utility.ceps2spec(ceps_trans)
     for i in range(a.size):
         sign_trans = signal.istft(spec_trans[i],nperseg=n_fft)[1]
         soundfile.write(f"result/test_vtl/test{i}.wav",sign_trans,sr)
@@ -171,4 +178,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test_vtl()
