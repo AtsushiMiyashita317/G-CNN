@@ -65,28 +65,22 @@ class TimitOld(Dataset):
 
 class Timit(Dataset):
     def __init__(self, root, annotations_file, phncode_file, data_dir, 
-                n_fft=512, transform1=None, transform2=None, target_transform=None, datasize=None):
+                n_fft=256, n_frame=15, transform1=None, transform2=None, target_transform=None, datasize=None):
         self.annotations = pd.read_csv(os.path.join(root, annotations_file))
-
-        n_shift = n_fft//2
-
-        self.annotations['n_frame'] = (self.annotations['length']+n_shift-1)//n_shift+1
-        self.annotations['maxidx'] = self.annotations['n_frame'].cumsum()
-        self.annotations['minidx'] = self.annotations['maxidx'].shift()
-        self.annotations.at[self.annotations.index[0],'minidx'] = 0
-        self.annotations['minidx'] = self.annotations['minidx'].astype(np.int64)
 
         with open(os.path.join(root, phncode_file),'rb') as f:
             self.phn_dict,self.phn_list,self.phn_count = pickle.load(f)
         
         self.data_dir = os.path.join(root, data_dir)
         self.n_fft = n_fft
+        self.n_frame = n_frame
         self.transform1 = transform1
         self.transform2 = transform2
         self.target_transform = target_transform
         self.cache_spec = None
         self.cache_label = None
         self.cache_range = (0,0)
+        self.cache_centor = None
         self.datasize = datasize
 
     def __len__(self):
@@ -105,33 +99,40 @@ class Timit(Dataset):
 
             phn_path = os.path.join(self.data_dir, cand.iat[0, 2])
             df_phn = pd.read_csv(phn_path, delimiter=' ', header=None)
-            self.cache_label = np.zeros(self.cache_spec.shape[1])
-            noverlap = self.n_fft//2
+            self.cache_label = np.zeros(len(df_phn), dtype=np.int64)
+            self.cache_centor = np.zeros(len(df_phn), dtype=np.int64)
 
             for i in range(len(df_phn)):
-                begin = df_phn.iat[i,0]//noverlap
-                end = df_phn.iat[i,1]//noverlap
+                begin = df_phn.iat[i,0]
+                end = df_phn.iat[i,1]
                 phn = df_phn.iat[i,2]
-                assert phn in self.phn_dict
-                    
-                self.cache_label[begin:end] = self.phn_dict[phn]
+                self.cache_label[i] = self.phn_dict[phn]
+                self.cache_centor[i] = (begin + end)//2
 
             if self.transform1:
                 self.cache_spec = self.transform1(self.cache_spec)    
 
-            self.cache_range = (cand.iat[0, 6],cand.iat[0, 5])
+            self.cache_range = (cand.iat[0, 5],cand.iat[0, 4])
         
-        index = idx - self.cache_range[0]
+        frames = np.zeros(self.cache_spec.shape[:-1]+(self.n_frame,),dtype=np.complex128)
+        local_idx = idx - self.cache_range[0]
+        centor = self.cache_centor[local_idx]
+        lower = centor - self.n_frame//2
+        upper = centor + (self.n_frame + 1)//2
+        lower_sc = max(0, lower)
+        upper_sc = min(self.cache_spec.shape[-1], upper)
+        lower_dst = lower_sc - lower
+        upper_dst = self.n_frame - (upper - upper_sc)
 
-        frame = self.cache_spec[...,index]
-        label = self.cache_label[...,index]
+        frames[...,lower_dst:upper_dst] = self.cache_spec[...,lower_sc:upper_sc]
+        label = self.cache_label[...,local_idx]
 
         if self.transform2:
-            frame = self.transform2(frame)
+            frames = self.transform2(frames)
         if self.target_transform:
             label = self.target_transform(label)
 
-        return frame, label
+        return frames, label
 
 class TimitMetrics(Dataset):
     def __init__(self, root, annotations_file, phncode_file, data_dir):
@@ -203,7 +204,7 @@ class TimitTmp(Dataset):
 
         self.annotations_new.append({'wav_path':self.df_wav.iat[idx, 5],
                                      'phn_path':self.df_phn.iat[idx, 5],
-                                     'length':sign.shape[0]})
+                                     'length':len(df)})
         
             
         return sign
@@ -312,27 +313,30 @@ def main():
     args = parser.parse_args()
 
     n_fft = 512
-    s2c = transform.Function(utility.spec2ceps)
-    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,32)))
-    c2s = transform.Function(utility.ceps2spec)
-    mel = transform.MelScale(n_fft,n_mels=64)
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,9)))
+    mel = transform.MelScale(n_fft,n_mels=40)
     trans = transform.Function(np.transpose)
     addc = transform.Function(np.expand_dims, axis=0)
 
-    composed1 = transforms.Compose([s2c,vtl,c2s,mel])
+    composed1 = transforms.Compose([vtl,mel])
     composed2 = transforms.Compose([trans,addc])
 
-    train_data = Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=addc)
-    test_data = Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=addc)
+    train_data = Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=trans)
+    test_data = Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,transform2=trans)
 
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
 
+    print(train_dataloader.__iter__().next()[0].shape)
+
     for batch, (X,y) in enumerate(train_dataloader):
-        print(f"train batch = {batch}\r")
+        print(f"processing train... batch = {batch}\r",end='')
+
+    print()
 
     for batch, (X,y) in enumerate(test_dataloader):
-        print(f"test batch = {batch}\r")
+        print(f"processing test... batch = {batch}\r",end='')
+
 
 def tmp():
     parser = argparse.ArgumentParser(description="load TIMIT and convert to npz file")
@@ -354,19 +358,27 @@ def tmp():
         count += 1
 
     df = pd.DataFrame(train_data.annotations_new)
+    df['maxidx'] = df['length'].cumsum()
+    df['minidx'] = df['maxidx'].shift()
+    df.at[df.index[0],'minidx'] = 0
+    df['minidx'] = df['minidx'].astype(np.int64)
     df.to_csv(os.path.join(args.path, 'train_annotations.csv'))
 
 
     with open("phn.pickle", "wb") as f:
         pickle.dump((phn_dict,phn_list,phn_count), f)
 
-    print('\n')
+    print('\r',end='')
 
     for sign in test_dataloader:
         print(f"processing test... count = {count}\r",end='')
         count += 1
 
     df = pd.DataFrame(test_data.annotations_new)
+    df['maxidx'] = df['length'].cumsum()
+    df['minidx'] = df['maxidx'].shift()
+    df.at[df.index[0],'minidx'] = 0
+    df['minidx'] = df['minidx'].astype(np.int64)
     df.to_csv(os.path.join(args.path, 'test_annotations.csv'))
 
 def metrics():
@@ -392,4 +404,4 @@ def metrics():
 
 
 if __name__=="__main__":
-    metrics()
+    main()
