@@ -76,14 +76,10 @@ def main():
     args = parser.parse_args()
 
     n_fft = 512
-    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,32)))
-    mel = transform.MelScale(n_fft,n_mels=32)
-    trans = transform.Function(np.transpose)
-    abs = transform.Function(np.abs)
-    addc = transform.Function(np.expand_dims, axis=0)
+    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,9)))
+    mel = transform.MelScale(n_fft,n_mels=40)
 
     composed1 = transforms.Compose([vtl,mel])
-    composed2 = transforms.Compose([trans,addc])
 
     train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=5120)
     test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=1024)
