@@ -1,0 +1,3 @@
+[submodule "TIMIT"]
+	path = TIMIT
+	url = github.com:AtsushiMiyashita317/TIMIT
