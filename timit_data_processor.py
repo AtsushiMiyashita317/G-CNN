@@ -107,14 +107,14 @@ class Timit(Dataset):
                 end = df_phn.iat[i,1]
                 phn = df_phn.iat[i,2]
                 self.cache_label[i] = self.phn_dict[phn]
-                self.cache_centor[i] = (begin + end)//2
+                self.cache_centor[i] = (begin + end)//self.n_fft
 
             if self.transform1:
                 self.cache_spec = self.transform1(self.cache_spec)    
 
             self.cache_range = (cand.iat[0, 5],cand.iat[0, 4])
         
-        frames = np.zeros(self.cache_spec.shape[:-1]+(self.n_frame,),dtype=np.complex128)
+        frames = np.zeros(self.cache_spec.shape[:-1]+(self.n_frame,),dtype=self.cache_spec.dtype)
         local_idx = idx - self.cache_range[0]
         centor = self.cache_centor[local_idx]
         lower = centor - self.n_frame//2
@@ -123,7 +123,6 @@ class Timit(Dataset):
         upper_sc = min(self.cache_spec.shape[-1], upper)
         lower_dst = lower_sc - lower
         upper_dst = self.n_frame - (upper - upper_sc)
-
         frames[...,lower_dst:upper_dst] = self.cache_spec[...,lower_sc:upper_sc]
         label = self.cache_label[...,local_idx]
 
@@ -404,4 +403,4 @@ def metrics():
 
 
 if __name__=="__main__":
-    tmp()
+    main()
