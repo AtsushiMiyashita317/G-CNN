@@ -39,6 +39,7 @@ def feature_test(train_dataloader, test_dataloader, n_class, max_hiddenlayers, e
 
     for n_hiddenlayers in range(start_hiddenlayers,max_hiddenlayers):
         model = nn.Sequential()
+        model.add_module('flatten', nn.Flatten())
         model.add_module('fc_in', nn.Linear(in_features,1024))
         model.add_module('relu_in', nn.ReLU())
         for i in range(n_hiddenlayers):
