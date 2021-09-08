@@ -12,8 +12,7 @@ def spec2ceps(spec, dropphase=False):
             ceps (ndarray, axis=(qerf,time)):
                 output cepstrum (both sided, real). 
     """
-    spec_db = np.ma.log(spec)
-    spec_db = spec_db.filled(-9)
+    spec_db = np.log(spec)
     if dropphase:
         spec_db = spec_db.real + 0j
     ceps = np.fft.irfft(spec_db,axis=-2)
