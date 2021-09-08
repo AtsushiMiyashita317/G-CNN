@@ -35,6 +35,7 @@ def main():
     parser = argparse.ArgumentParser(description="test class FramedTimit")
     parser.add_argument("path", type=str, help="path to the directory that has annotation files")
     parser.add_argument("exname", type=str, help="the name of experiment")
+    parser.add_argument("--model_path", type=str, help="the name of model file")
     args = parser.parse_args()
 
     trans = transform.Function(np.transpose, axes=(1,0,2))
@@ -48,8 +49,13 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using {} device".format(device))
 
-    model = Model().to(device)
-    print(model)
+    if args.model_path:
+        model = Model().to(device)
+        model.load_state_dict(torch.load(args.model_path))
+        model.eval()
+    else:
+        model = Model().to(device)
+        print(model)
 
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
@@ -85,7 +91,7 @@ def main():
 
         if t % 10 == 0:
             model_path = f"./logs/{args.exname}/model{t}.pth"
-            torch.save(model.state_dict(), model_path)
+            torch.save(model, model_path)
 
     size = len(test_dataloader.dataset)
     model.eval()
@@ -104,7 +110,7 @@ def main():
     print("Done!")
 
     model_path = f"./logs/{args.exname}/model.pth"
-    torch.save(model.state_dict(), model_path)
+    torch.save(model, model_path)
 
     writer.close()
 
