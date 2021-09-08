@@ -75,3 +75,6 @@ def main():
                 test_dataloader = DataLoader(test_data, batch_size=128)
 
                 feature_test(train_dataloader,test_dataloader,61,8,10,log_dir)
+
+if __name__ == "__main__":
+    main()
