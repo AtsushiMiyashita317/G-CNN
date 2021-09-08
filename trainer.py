@@ -32,7 +32,7 @@ def train(dataloader, model, loss_fn, optimizer, device, writer, iter):
         loss.backward()
         optimizer.step()
 
-        if batch % 1 == 0:
+        if batch % 100 == 0:
             loss, current = loss.item(), batch * len(X)
             print(f"loss: {loss:>7f} acc: {acc:>3f} [{current:>5d}/{size:>5d}]")
 
