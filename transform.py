@@ -151,6 +151,14 @@ class VTL_Invariant(object):
 
         return spec_like
 
+class Normalize(object):
+    def __init__(self, axis=None):
+        self.axis = axis
+
+    def __call__(self, input):
+        mean = np.mean(input,self.axis,keepdims=True)
+        std = np.std(input,self.axis,keepdims=True)
+        return (input-mean)/std
 
 class MelScale(object):
     def __init__(self, n_fft, sr=16000, n_mels=128):
