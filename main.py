@@ -15,11 +15,11 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
         self.layer_stack = nn.Sequential(
-            nn.Conv2d(15,6,(8,3)),
+            nn.Conv2d(40,10,(3,3)),
             nn.ReLU(),
-            nn.MaxPool2d((5,7), stride=(5,7)),
+            nn.MaxPool2d((2,7), stride=(2,7)),
             nn.Flatten(),
-            nn.Linear(6*6*1,1024),
+            nn.Linear(10*6*1,1024),
             nn.ReLU(),
             nn.Linear(1024,1024),
             nn.ReLU(),
@@ -37,8 +37,10 @@ def main():
     parser.add_argument("exname", type=str, help="the name of experiment")
     args = parser.parse_args()
 
-    train_data = MyDataset(args.path, 'TRAIN')
-    test_data = MyDataset(args.path, 'TEST')
+    trans = transform.Function(np.transpose, axes=(1,0,2))
+
+    train_data = MyDataset(args.path, 'TRAIN', transform=trans)
+    test_data = MyDataset(args.path, 'TEST', transform=trans)
 
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
