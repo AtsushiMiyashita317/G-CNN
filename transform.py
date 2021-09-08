@@ -239,15 +239,15 @@ def transform():
     n_fft =  256
     vtl = VTL(np.tanh(np.linspace(-0.2,0.2,9)),n_fft)
     nml = Normalize(axis=1)
-    mel = MelScale(n_fft,n_mels=40)
+    mel = MelScale(n_fft,n_mels=64)
     trans = Function(np.transpose)
 
     compose = transforms.Compose([vtl,nml])
 
     train_data = Timit(args.sc,'TIMIT/train_annotations.csv','TIMIT/phn.pickle','data/',
-                       n_fft=n_fft,signal_transform=compose,spec_transform=mel,frame_transform=trans)
+                       n_fft=n_fft,n_frame=25,signal_transform=compose,spec_transform=mel,frame_transform=trans)
     test_data = Timit(args.sc,'TIMIT/test_annotations.csv','TIMIT/phn.pickle','data/',
-                      n_fft=n_fft,signal_transform=compose,spec_transform=mel,frame_transform=trans)
+                      n_fft=n_fft,n_frame=25,signal_transform=compose,spec_transform=mel,frame_transform=trans)
 
     MyUtility.mydataset.save(train_data, args.dst, "TRAIN", 128)
     MyUtility.mydataset.save(test_data, args.dst, "TEST", 128)
