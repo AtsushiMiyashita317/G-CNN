@@ -33,7 +33,7 @@ class FullConect(nn.Module):
 
 def feature_test(train_dataloader, test_dataloader, n_class, max_hiddenlayers, epochs, log_dir, start_hiddenlayers=3):
     train_data = train_dataloader.__iter__().next()
-    in_features = torch.numel(train_data)
+    in_features = torch.numel(train_data[0])
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using {} device".format(device))
