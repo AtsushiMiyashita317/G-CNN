@@ -2,67 +2,68 @@ import argparse
 
 import librosa
 import numpy as np
-from numpy.core.function_base import linspace
 from scipy import signal
 import soundfile
-import torch
+from torch.utils.data import DataLoader
 from torchvision import transforms
 
 import utility
+from TIMIT.timit_data_processor import Timit
+import MyUtility.mydataset
 
+
+def filtfilt(x,a):
+    """
+        Apply IIR filter (z^(-1)-a)/(1-az^(-1))
+        # Args
+            x (ndarray, axis=(time,...)):
+                input signal
+            a (float or ndarray, axis=(...,)):
+                warping parameter
+        # Returns
+            y (ndarray, axis=(time,...)):
+                output signal
+        # Note
+            x.shape[1:] and a.shape must be same.
+
+    """
+    y = a*x
+    y[1:] += x[:-1]
+    for i in range(1,y.shape[0]):
+        y[i] -= a*y[i-1]
+    return y
+
+def vtl_mat(dim, a):
+    """
+        Create transform matrix for VTL.
+        # Args
+            dim (int): dimension of matrix
+            a (float or ndarray, shape=(k,)):
+                warping parameter
+        # Returns
+            mat (ndarray, shape=((k,)dim,dim)):
+                transform matrix
+        # Examples
+            >>> dim = ceps.shape[0]
+            >>> ceps_vtlt = vtl_mat(dim,a) @ ceps
+    """
+    if type(a) is float:
+        mat = np.zeros((dim,dim))
+    else:
+        mat = np.zeros((dim,dim,a.size))
+    
+    mat[0,0] = 1
+
+    for i in range(1,dim):
+        mat[i] = filtfilt(mat[i-1],a)
+
+    mat = np.transpose(mat)
+    return mat
 
 class VTL(object):
     """
         VTL transformer
     """
-    def filtfilt(x,a):
-        """
-            Apply IIR filter (z^(-1)-a)/(1-az^(-1))
-            # Args
-                x (ndarray, axis=(time,...)):
-                    input signal
-                a (float or ndarray, axis=(...,)):
-                    warping parameter
-            # Returns
-                y (ndarray, axis=(time,...)):
-                    output signal
-            # Note
-                x.shape[1:] and a.shape must be same.
-
-        """
-        y = a*x
-        y[1:] += x[:-1]
-        for i in range(1,y.shape[0]):
-            y[i] -= a*y[i-1]
-        return y
-
-    def vtl_mat(dim, a):
-        """
-            Create transform matrix for VTL.
-            # Args
-                dim (int): dimension of matrix
-                a (float or ndarray, shape=(k,)):
-                    warping parameter
-            # Returns
-                mat (ndarray, shape=((k,)dim,dim)):
-                    transform matrix
-            # Examples
-                >>> dim = ceps.shape[0]
-                >>> ceps_vtlt = vtl_mat(dim,a) @ ceps
-        """
-        if type(a) is float:
-            mat = np.zeros((dim,dim))
-        else:
-            mat = np.zeros((dim,dim,a.size))
-        
-        mat[0,0] = 1
-
-        for i in range(1,dim):
-            mat[i] = VTL.filtfilt(mat[i-1],a)
-
-        mat = np.transpose(mat)
-        return mat
-
     def __init__(self, n_fft, a, dropphase=False):
         """
             VTL parameter setting
@@ -75,7 +76,7 @@ class VTL(object):
         self.dim = n_fft//2 + 1
         self.a = a
         self.dropphase = dropphase
-        self.mat = VTL.vtl_mat(self.dim,a)
+        self.mat = vtl_mat(self.dim,a)
 
     def __call__(self, spec):
         """
@@ -89,9 +90,9 @@ class VTL(object):
         """
         # commentout after test
         # assert self.dim == input.shape[0]
-
+        
         ceps = utility.spec2ceps(spec, self.dropphase)
-
+        
         ceps_trans = np.zeros(self.a.shape + ceps.shape)
         if self.dropphase:
             ceps_trans[:,:self.dim] = self.mat @ ceps[:self.dim]
@@ -108,6 +109,51 @@ class VTL(object):
             spec_trans = np.abs(spec_trans)
 
         return spec_trans
+
+class VTL_Invariant(object):
+    """
+        Extract VTL_Invariant
+    """
+    def __init__(self, n_fft, dropphase=False):
+        """
+            VTL parameter setting
+            # Args
+                half (int): dimension of cepstrum along quefrency axis
+                a (float or ndarray, shape=(k,)):
+                    warping parameter
+        """
+        self.dim = n_fft//2 + 1
+        self.dropphase = dropphase
+
+        delem = np.concatenate([np.arange(1,self.dim),
+                                np.arange(n_fft-self.dim-1,-1,-1)])
+        upper = np.diag(delem,1)
+        delem = np.concatenate([np.arange(self.dim-1),
+                                np.arange(n_fft-self.dim,0,-1)])
+        lower = np.diag(delem,-1)
+        sum = upper - lower
+        self.l,self.v = np.linalg.eig(sum)
+        self.v_inv = np.linalg.inv(self.v)
+
+    def __call__(self, spec):
+        """
+            Compose transform
+            # Args
+                spec (ndarray, axis=(...,freq,time)):
+                    input spectrum
+            # Returns
+                spec_trans (ndarray, axis=((k,)...,freq,time)):
+                    transformed spectrum
+        """
+    
+        ceps = utility.spec2ceps(spec, self.dropphase)
+
+        ivar = self.v @ np.abs(self.v_inv @ ceps)
+
+        spec_like = utility.ceps2spec(ivar)
+
+        return spec_like
+
 
 class MelScale(object):
     def __init__(self, n_fft, sr=16000, n_mels=128):
@@ -176,6 +222,49 @@ def main():
     
     np.savez(args.dst,x_train=x_train_transformed,y_train=y_train,x_test=x_test_transformed,y_test=y_test)
 
+def transform():
+    parser = argparse.ArgumentParser(description="test class FramedTimit")
+    parser.add_argument("sc", type=str, help="path to the directory that has annotation files")
+    parser.add_argument("dst", type=str, help="path to the directory that transformed data is saved to")
+    args = parser.parse_args()
+
+    n_fft = 256
+    vtl = VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,9)),dropphase=True)
+    mel = MelScale(n_fft,n_mels=40)
+    trans = Function(np.transpose)
+
+
+    composed1 = transforms.Compose([vtl,mel])
+
+    train_data = Timit(args.sc,'train_annotations.csv','phn.pickle','data/',
+                       n_fft=n_fft,transform1=composed1,transform2=trans)
+    test_data = Timit(args.sc,'test_annotations.csv','phn.pickle','data/',
+                      n_fft=n_fft,transform1=composed1,transform2=trans)
+
+    MyUtility.mydataset.save(train_data, args.dst, "TRAIN", 128)
+    MyUtility.mydataset.save(test_data, args.dst, "TEST", 128)
+
+def load():
+    parser = argparse.ArgumentParser(description="test class FramedTimit")
+    parser.add_argument("sc", type=str, help="path to the directory that has annotation files")
+    args = parser.parse_args()
+
+    train_data = MyUtility.mydataset.MyDataset(args.sc, 'TRAIN')
+    test_data = MyUtility.mydataset.MyDataset(args.sc, 'TEST')
+
+    train_dataloader = DataLoader(train_data, batch_size=128)
+    test_dataloader = DataLoader(test_data, batch_size=128)
+
+    print(train_data[0][0].shape)
+
+    for batch, (X,y) in enumerate(train_dataloader):
+        print(f"processing train... batch = {batch}\r",end='')
+
+    print()
+
+    for batch, (X,y) in enumerate(test_dataloader):
+        print(f"processing test... batch = {batch}\r",end='')
+
 
 if __name__ == "__main__":
-    test_vtl()
+    load()

@@ -8,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
 import transform
-import timit_data_processor
+from MyUtility.mydataset import MyDataset
 
 
 class Model(nn.Module):
@@ -20,6 +20,8 @@ class Model(nn.Module):
             nn.MaxPool2d((5,7), stride=(5,7)),
             nn.Flatten(),
             nn.Linear(6*6*1,1024),
+            nn.ReLU(),
+            nn.Linear(1024,1024),
             nn.ReLU(),
             nn.Linear(1024,61),
             nn.ReLU(),
@@ -79,10 +81,8 @@ def main():
 
     composed1 = transforms.Compose([vtl,mel])
 
-    train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',
-                                            n_fft=n_fft,transform1=composed1,transform2=trans)
-    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',
-                                           n_fft=n_fft,transform1=composed1,transform2=trans)
+    train_data = MyDataset(args.path, 'TRAIN')
+    test_data = MyDataset(args.path, 'TEST')
 
     train_dataloader = DataLoader(train_data, batch_size=128)
     test_dataloader = DataLoader(test_data, batch_size=128)
@@ -125,8 +125,8 @@ def main():
                 loss, current = loss.item(), batch * len(X)
                 print(f"loss: {loss:>7f} acc: {acc:>3f} [{current:>5d}/{size:>5d}]")
 
-        if epochs % 10 == 0:
-            model_path = f"./logs/{args.exname}/model{epochs}.pth"
+        if t % 10 == 0:
+            model_path = f"./logs/{args.exname}/model{t}.pth"
             torch.save(model.state_dict(), model_path)
 
     size = len(test_dataloader.dataset)

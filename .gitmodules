@@ -1,3 +1,6 @@
 [submodule "TIMIT"]
 	path = TIMIT
 	url = github.com:AtsushiMiyashita317/TIMIT
+[submodule "MyUtility"]
+	path = MyUtility
+	url = github.com:AtsushiMiyashita317/MyUtility.git
