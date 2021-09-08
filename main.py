@@ -15,11 +15,11 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
         self.layer_stack = nn.Sequential(
-            nn.Conv2d(40,10,(3,3)),
+            nn.Conv2d(64,32,(8,3)),
             nn.ReLU(),
-            nn.MaxPool2d((2,7), stride=(2,7)),
+            nn.MaxPool2d((3,7), stride=(3,7)),
             nn.Flatten(),
-            nn.Linear(10*6*1,1024),
+            nn.Linear(32*6*1,1024),
             nn.ReLU(),
             nn.Linear(1024,1024),
             nn.ReLU(),
