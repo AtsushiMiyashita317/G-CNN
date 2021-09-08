@@ -14,17 +14,16 @@ class FullConect(nn.Module):
         super(FullConect, self).__init__()
         self.flatten = nn.Flatten()
         self.inputlayer = nn.Linear(in_features,hidden_channel)
-        self.hiddenlayer = nn.Linear(hidden_channel,hidden_channel)
+        self.hiddenlayers = [nn.Linear(hidden_channel,hidden_channel) for _ in range(n_hiddenlayers)]
         self.outputlayer = nn.Linear(hidden_channel,out_features)
         self.activation = nn.ReLU()
-        self.n_hiddenlayers = n_hiddenlayers
 
     def forward(self, input):
         x = self.flatten(input)
         x = self.inputlayer(x)
         x = self.activation(x)
-        for i in range(self.n_hiddenlayers):
-            x = self.hiddenlayer(x)
+        for i in range(len(self.hiddenlayers)):
+            x = self.hiddenlayers[i](x)
             x = self.activation(x)
         x = self.outputlayer(x)
         logits = self.activation(x)
@@ -39,7 +38,16 @@ def feature_test(train_dataloader, test_dataloader, n_class, max_hiddenlayers, e
     print("Using {} device".format(device))
 
     for n_hiddenlayers in range(start_hiddenlayers,max_hiddenlayers):
-        model = FullConect(in_features,n_class,n_hiddenlayers).to(device)
+        model = nn.Sequential()
+        model.add_module('fc_in', nn.Linear(in_features,1024))
+        model.add_module('relu_in', nn.ReLU())
+        for i in range(n_hiddenlayers):
+            model.add_module(f'fc{i}', nn.Linear(1024,1024))
+            model.add_module(f'relu{i}', nn.ReLU())
+        model.add_module('fc_out', nn.Linear(1024,n_class))
+        model.add_module('relu_out', nn.ReLU())
+
+        model = model.to(device)
         print(model)
 
         loss_fn = nn.CrossEntropyLoss()
