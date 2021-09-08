@@ -92,7 +92,7 @@ class VTL(object):
         # assert self.dim == input.shape[0]
         
         spec = signal.stft(sign, nperseg=self.n_fft)[2]
-        ceps = utility.spec2ceps(spec, self.dropphase)
+        ceps = utility.spec2ceps(spec)
         
         ceps_trans = np.zeros(self.a.shape + ceps.shape)
         dim = self.n_fft//2+1
@@ -184,7 +184,7 @@ def test_vtl():
     n_fft = 1024
     sign, sr = soundfile.read(args.sc)
     
-    a = np.array([-0.2, -0.1, 0, 0.1, 0.2])
+    a = np.tanh(np.linspace(-0.3,0.3,9))
     vtl = VTL(a, n_fft)
 
     sign_trans = vtl(sign)
@@ -228,21 +228,15 @@ def transform():
     parser.add_argument("dst", type=str, help="path to the directory that transformed data is saved to")
     args = parser.parse_args()
 
-    n_fft1 = 1024
-    n_fft2 =  256
-    vtl = VTL(n_fft1,np.tanh(np.linspace(-0.5,0.5,9)),dropphase=True)
-    istft = Function(signal.istft, idx_ret=1, nperseg=n_fft1)
-    stft = Function(signal.stft, idx_ret=2, nperseg=n_fft2)
-    mel = MelScale(n_fft2,n_mels=40)
+    n_fft =  256
+    vtl = VTL(np.tanh(np.linspace(-0.3,0.3,9)),n_fft)
+    mel = MelScale(n_fft,n_mels=40)
     trans = Function(np.transpose)
 
-
-    composed = transforms.Compose([vtl,istft,stft,mel])
-
-    train_data = Timit(args.sc,'train_annotations.csv','phn.pickle','data/',
-                       n_fft=n_fft1,transform1=composed,transform2=trans)
-    test_data = Timit(args.sc,'test_annotations.csv','phn.pickle','data/',
-                      n_fft=n_fft1,transform1=composed,transform2=trans)
+    train_data = Timit(args.sc,'TIMIT/train_annotations.csv','TIMIT/phn.pickle','data/',
+                       n_fft=n_fft,signal_transform=vtl,spec_transform=mel,frame_transform=trans)
+    test_data = Timit(args.sc,'TIMIT/test_annotations.csv','TIMIT/phn.pickle','data/',
+                      n_fft=n_fft,signal_transform=vtl,spec_transform=mel,frame_transform=trans)
 
     MyUtility.mydataset.save(train_data, args.dst, "TRAIN", 128)
     MyUtility.mydataset.save(test_data, args.dst, "TEST", 128)
@@ -270,4 +264,4 @@ def load():
 
 
 if __name__ == "__main__":
-    test_vtl()
+    transform()
