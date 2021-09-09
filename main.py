@@ -1,66 +1,103 @@
 import argparse
-import os
 
 import numpy as np
 import torch
 from torch import nn
-from torch._C import dtype
-from torch.nn.modules import linear
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import transforms
 
 import transform
-import timit_data_processor
-import utility
+from MyUtility.mydataset import MyDataset
 
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
         self.layer_stack = nn.Sequential(
-            nn.Conv2d(1,32,(3,8)),
-            nn.Conv2d(32,32,(3,8)),
+            nn.Conv2d(64,32,(8,3)),
             nn.ReLU(),
-            nn.MaxPool2d(2, stride=2),
-            nn.Conv2d(32,32,3),
-            nn.Conv2d(32,32,3),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride=2),
+            nn.MaxPool2d((3,7), stride=(3,7)),
             nn.Flatten(),
-            nn.Linear(32*5*5,256),
+            nn.Linear(32*6*1,1024),
             nn.ReLU(),
-            nn.Linear(256,61)
+            nn.Linear(1024,1024),
+            nn.ReLU(),
+            nn.Linear(1024,61),
+            nn.ReLU(),
         )
 
     def forward(self, x):
         logits = self.layer_stack(x)
         return logits
 
-def train(dataloader, model, loss_fn, optimizer, device):
-    size = len(dataloader.dataset)
-    for batch, (X, y) in enumerate(dataloader):
-        X, y = X.to(device, dtype=torch.float), y.to(device, dtype=torch.long)
-        
-        # 損失誤差を計算
-        pred = model(X)
-        loss = loss_fn(pred, y)
-        acc = (pred.argmax(1) == y).type(torch.float).sum().item()/y.shape[0]
-        
-        # バックプロパゲーション
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+def main():
+    parser = argparse.ArgumentParser(description="test class FramedTimit")
+    parser.add_argument("path", type=str, help="path to the directory that has annotation files")
+    parser.add_argument("exname", type=str, help="the name of experiment")
+    parser.add_argument("--model_path", type=str, help="the name of model file")
+    args = parser.parse_args()
 
-        if batch % 1 == 0:
-            loss, current = loss.item(), batch * len(X)
-            print(f"loss: {loss:>7f} acc: {acc:>3f} [{current:>5d}/{size:>5d}]")
+    trans = transform.Function(np.transpose, axes=(1,0,2))
 
-def test(dataloader, model, loss_fn, device):
-    size = len(dataloader.dataset)
+    train_data = MyDataset(args.path, 'TRAIN', transform=trans)
+    test_data = MyDataset(args.path, 'TEST', transform=trans)
+
+    train_dataloader = DataLoader(train_data, batch_size=128)
+    test_dataloader = DataLoader(test_data, batch_size=128)
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print("Using {} device".format(device))
+
+    if args.model_path:
+        model = Model().to(device)
+        model.load_state_dict(torch.load(args.model_path))
+        model.eval()
+    else:
+        model = Model().to(device)
+        print(model)
+
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+
+    epochs = 10000
+    size = len(train_dataloader.dataset)
+
+    writer = SummaryWriter(log_dir=f"./logs/{args.exname}")
+    i = 0
+
+    for t in range(epochs):
+        print(f"Epoch {t+1}\n-------------------------------")
+        for batch, (X, y) in enumerate(train_dataloader):
+            X, y = X.to(device, dtype=torch.float), y.to(device, dtype=torch.long)
+            
+            # 損失誤差を計算
+            pred = model(X)
+            loss = loss_fn(pred, y)
+            acc = (pred.argmax(1) == y).type(torch.float).sum().item()/y.shape[0]
+            
+            writer.add_scalar("training/loss", loss, i)
+            writer.add_scalar("training/accuracy", acc, i)
+            i += 1
+
+            # バックプロパゲーション
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            if batch % 100 == 0:
+                loss, current = loss.item(), batch * len(X)
+                print(f"loss: {loss:>7f} acc: {acc:>3f} [{current:>5d}/{size:>5d}]")
+
+        if t % 10 == 0:
+            model_path = f"./logs/{args.exname}/model{t}.pth"
+            torch.save(model, model_path)
+
+    size = len(test_dataloader.dataset)
     model.eval()
     test_loss, correct = 0, 0
     with torch.no_grad():
-        for X, y in dataloader:
+        for X, y in test_dataloader:
             X, y = X.to(device, dtype=torch.float), y.to(device, dtype=torch.long)
 
             pred = model(X)
@@ -70,42 +107,12 @@ def test(dataloader, model, loss_fn, device):
     correct /= size
     print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
-def main():
-    parser = argparse.ArgumentParser(description="test class FramedTimit")
-    parser.add_argument("path", type=str, help="path to the directory that has annotation files")
-    args = parser.parse_args()
-
-    n_fft = 512
-    vtl = transform.VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,32)))
-    mel = transform.MelScale(n_fft,n_mels=32)
-    trans = transform.Function(np.transpose)
-    abs = transform.Function(np.abs)
-    addc = transform.Function(np.expand_dims, axis=0)
-
-    composed1 = transforms.Compose([vtl,mel])
-    composed2 = transforms.Compose([trans,addc])
-
-    train_data = timit_data_processor.Timit(args.path,'train_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=5120)
-    test_data = timit_data_processor.Timit(args.path,'test_annotations.csv','phn.pickle','data/',n_fft=n_fft,transform1=composed1,datasize=1024)
-
-    train_dataloader = DataLoader(train_data, batch_size=128)
-    test_dataloader = DataLoader(test_data, batch_size=128)
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print("Using {} device".format(device))
-
-    model = Model().to(device)
-    print(model)
-
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-
-    epochs = 100
-    for t in range(epochs):
-        print(f"Epoch {t+1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, device)
-        test(test_dataloader, model, loss_fn, device)
     print("Done!")
+
+    model_path = f"./logs/{args.exname}/model.pth"
+    torch.save(model, model_path)
+
+    writer.close()
 
 
 if __name__=="__main__":

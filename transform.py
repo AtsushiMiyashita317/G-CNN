@@ -160,6 +160,51 @@ class Normalize(object):
         std = np.std(input,self.axis,keepdims=True)
         return (input-mean)/std
 
+class VTL_Invariant(object):
+    """
+        Extract VTL_Invariant
+    """
+    def __init__(self, n_fft, dropphase=False):
+        """
+            VTL parameter setting
+            # Args
+                half (int): dimension of cepstrum along quefrency axis
+                a (float or ndarray, shape=(k,)):
+                    warping parameter
+        """
+        self.dim = n_fft//2 + 1
+        self.dropphase = dropphase
+
+        delem = np.concatenate([np.arange(1,self.dim),
+                                np.arange(n_fft-self.dim-1,-1,-1)])
+        upper = np.diag(delem,1)
+        delem = np.concatenate([np.arange(self.dim-1),
+                                np.arange(n_fft-self.dim,0,-1)])
+        lower = np.diag(delem,-1)
+        sum = upper - lower
+        self.l,self.v = np.linalg.eig(sum)
+        self.v_inv = np.linalg.inv(self.v)
+
+    def __call__(self, spec):
+        """
+            Compose transform
+            # Args
+                spec (ndarray, axis=(...,freq,time)):
+                    input spectrum
+            # Returns
+                spec_trans (ndarray, axis=((k,)...,freq,time)):
+                    transformed spectrum
+        """
+    
+        ceps = utility.spec2ceps(spec, self.dropphase)
+
+        ivar = self.v @ np.abs(self.v_inv @ ceps)
+
+        spec_like = utility.ceps2spec(ivar)
+
+        return spec_like
+
+
 class MelScale(object):
     def __init__(self, n_fft, sr=16000, n_mels=128):
         self.fb = librosa.filters.mel(sr,n_fft,n_mels=n_mels)
