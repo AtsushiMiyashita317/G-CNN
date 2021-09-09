@@ -4,6 +4,7 @@ import librosa
 import numpy as np
 from scipy import signal
 import soundfile
+from torch.utils import tensorboard
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
@@ -64,7 +65,7 @@ class VTL(object):
     """
         VTL transformer
     """
-    def __init__(self, n_fft, a, dropphase=False):
+    def __init__(self, a, n_fft=1024):
         """
             VTL parameter setting
             # Args
@@ -73,12 +74,11 @@ class VTL(object):
                     warping parameter
         """
         assert np.all(np.abs(a) < 1)
-        self.dim = n_fft//2 + 1
+        self.n_fft = n_fft
         self.a = a
-        self.dropphase = dropphase
-        self.mat = vtl_mat(self.dim,a)
+        self.mat = vtl_mat(n_fft//2+1,a)
 
-    def __call__(self, spec):
+    def __call__(self, sign):
         """
             Compose transform
             # Args
@@ -91,24 +91,74 @@ class VTL(object):
         # commentout after test
         # assert self.dim == input.shape[0]
         
-        ceps = utility.spec2ceps(spec, self.dropphase)
+        spec = signal.stft(sign, nperseg=self.n_fft)[2]
+        ceps = utility.spec2ceps(spec)
         
         ceps_trans = np.zeros(self.a.shape + ceps.shape)
-        if self.dropphase:
-            ceps_trans[:,:self.dim] = self.mat @ ceps[:self.dim]
-            ceps_trans[:,-1:1-self.dim:-1] = ceps_trans[:,1:self.dim-1]
-        else:
-            positive = ceps[:self.dim]
-            negative = np.roll(ceps,-1,axis=0)[-1:-self.dim-1:-1]
-            ceps_trans[:,:self.dim] = self.mat @ positive
-            ceps_trans[:,-1:1-self.dim:-1] = (self.mat @ negative)[:,1:self.dim-1]
+        dim = self.n_fft//2+1
+        
+        positive = ceps[:dim]
+        negative = np.roll(ceps,-1,axis=0)[-1:-dim-1:-1]
+        ceps_trans[:,:dim] = self.mat @ positive
+        ceps_trans[:,-1:1-dim:-1] = (self.mat @ negative)[:,1:dim-1]
 
         spec_trans = utility.ceps2spec(ceps_trans)
+        sign_trans = signal.istft(spec_trans, nperseg=self.n_fft)[1]
 
-        if self.dropphase:
-            spec_trans = np.abs(spec_trans)
+        return sign_trans
 
-        return spec_trans
+class VTL_Invariant(object):
+    """
+        Extract VTL_Invariant
+    """
+    def __init__(self, n_fft, dropphase=False):
+        """
+            VTL parameter setting
+            # Args
+                half (int): dimension of cepstrum along quefrency axis
+                a (float or ndarray, shape=(k,)):
+                    warping parameter
+        """
+        self.dim = n_fft//2 + 1
+        self.dropphase = dropphase
+
+        delem = np.concatenate([np.arange(1,self.dim),
+                                np.arange(n_fft-self.dim-1,-1,-1)])
+        upper = np.diag(delem,1)
+        delem = np.concatenate([np.arange(self.dim-1),
+                                np.arange(n_fft-self.dim,0,-1)])
+        lower = np.diag(delem,-1)
+        sum = upper - lower
+        self.l,self.v = np.linalg.eig(sum)
+        self.v_inv = np.linalg.inv(self.v)
+
+    def __call__(self, spec):
+        """
+            Compose transform
+            # Args
+                spec (ndarray, axis=(...,freq,time)):
+                    input spectrum
+            # Returns
+                spec_trans (ndarray, axis=((k,)...,freq,time)):
+                    transformed spectrum
+        """
+    
+        ceps = utility.spec2ceps(spec, self.dropphase)
+
+        ivar = self.v @ np.abs(self.v_inv @ ceps)
+
+        spec_like = utility.ceps2spec(ivar)
+
+        return spec_like
+
+class Normalize(object):
+    def __init__(self, axis=None):
+        self.axis = axis
+
+    def __call__(self, input):
+        mean = np.mean(input,self.axis,keepdims=True)
+        std = np.std(input,self.axis,keepdims=True)
+        return (input-mean)/std
 
 class VTL_Invariant(object):
     """
@@ -164,14 +214,18 @@ class MelScale(object):
         return output
 
 class Function(object):
-    def __init__(self, f, *args, **kwargs):
+    def __init__(self, f, idx_ret=None, *args, **kwargs):
         self.f = f
+        self.idx_ret = idx_ret
         self.args = args
         self.kwargs = kwargs
 
     def __call__(self, input):
         output = self.f(input,*self.args,**self.kwargs)
-        return output
+        if self.idx_ret:
+            return output[self.idx_ret]
+        else:
+            return output
     
 
 def test_vtl():
@@ -182,19 +236,18 @@ def test_vtl():
 
     n_fft = 1024
     sign, sr = soundfile.read(args.sc)
-    spec = signal.stft(sign,sr,nperseg=n_fft)[2]
     
-    dim = n_fft//2 + 1
-    a = np.array([-0.2, -0.1, 0, 0.1, 0.2])
-    vtl = VTL(n_fft, a, dropphase=True)
-    assert vtl.mat.shape == (a.size,dim,dim)
+    a = np.tanh(np.linspace(-0.3,0.3,9))
+    vtl = VTL(a, n_fft)
 
-    spec_trans = vtl(spec)
-    assert spec_trans.shape == a.shape + spec.shape
+    sign_trans = vtl(sign)
+
+    # spec_trans = signal.stft(sign_trans,nperseg=256)[2]
+    # sign_trans = signal.istft(spec_trans,nperseg=256)[1]
+
 
     for i in range(a.size):
-        sign_trans = signal.istft(spec_trans[i],nperseg=n_fft)[1]
-        soundfile.write(f"result/test_vtl/test{i}.wav",sign_trans,sr)
+        soundfile.write(f"result/test_vtl/test{i}.wav",sign_trans[i],sr)
 
 
 def main():
@@ -228,18 +281,18 @@ def transform():
     parser.add_argument("dst", type=str, help="path to the directory that transformed data is saved to")
     args = parser.parse_args()
 
-    n_fft = 256
-    vtl = VTL(n_fft,np.tanh(np.linspace(-0.5,0.5,9)),dropphase=True)
-    mel = MelScale(n_fft,n_mels=40)
+    n_fft =  256
+    vtl = VTL(np.tanh(np.linspace(-0.2,0.2,9)),n_fft)
+    nml = Normalize(axis=1)
+    mel = MelScale(n_fft,n_mels=64)
     trans = Function(np.transpose)
 
+    compose = transforms.Compose([vtl,nml])
 
-    composed1 = transforms.Compose([vtl,mel])
-
-    train_data = Timit(args.sc,'train_annotations.csv','phn.pickle','data/',
-                       n_fft=n_fft,transform1=composed1,transform2=trans)
-    test_data = Timit(args.sc,'test_annotations.csv','phn.pickle','data/',
-                      n_fft=n_fft,transform1=composed1,transform2=trans)
+    train_data = Timit(args.sc,'TIMIT/train_annotations.csv','TIMIT/phn.pickle','data/',
+                       n_fft=n_fft,n_frame=25,signal_transform=compose,spec_transform=mel,frame_transform=trans)
+    test_data = Timit(args.sc,'TIMIT/test_annotations.csv','TIMIT/phn.pickle','data/',
+                      n_fft=n_fft,n_frame=25,signal_transform=compose,spec_transform=mel,frame_transform=trans)
 
     MyUtility.mydataset.save(train_data, args.dst, "TRAIN", 128)
     MyUtility.mydataset.save(test_data, args.dst, "TEST", 128)
@@ -267,4 +320,4 @@ def load():
 
 
 if __name__ == "__main__":
-    load()
+    transform()
