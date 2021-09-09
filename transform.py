@@ -4,13 +4,12 @@ import librosa
 import numpy as np
 from scipy import signal
 import soundfile
-from torch.utils import tensorboard
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-import utility
-from TIMIT.timit_data_processor import Timit
+import MyUtility.mysignal
 import MyUtility.mydataset
+from TIMIT.timit_data_processor import Timit
 
 
 def filtfilt(x,a):
@@ -92,7 +91,7 @@ class VTL(object):
         # assert self.dim == input.shape[0]
         
         spec = signal.stft(sign, nperseg=self.n_fft)[2]
-        ceps = utility.spec2ceps(spec)
+        ceps = MyUtility.mysignal.spec2ceps(spec)
         
         ceps_trans = np.zeros(self.a.shape + ceps.shape)
         dim = self.n_fft//2+1
@@ -102,7 +101,7 @@ class VTL(object):
         ceps_trans[:,:dim] = self.mat @ positive
         ceps_trans[:,-1:1-dim:-1] = (self.mat @ negative)[:,1:dim-1]
 
-        spec_trans = utility.ceps2spec(ceps_trans)
+        spec_trans = MyUtility.mysignal.ceps2spec(ceps_trans)
         sign_trans = signal.istft(spec_trans, nperseg=self.n_fft)[1]
 
         return sign_trans
@@ -143,11 +142,11 @@ class VTL_Invariant(object):
                     transformed spectrum
         """
     
-        ceps = utility.spec2ceps(spec, self.dropphase)
+        ceps = MyUtility.mysignal.spec2ceps(spec, self.dropphase)
 
         ivar = self.v @ np.abs(self.v_inv @ ceps)
 
-        spec_like = utility.ceps2spec(ivar)
+        spec_like = MyUtility.mysignal.ceps2spec(ivar)
 
         return spec_like
 
@@ -196,14 +195,13 @@ class VTL_Invariant(object):
                     transformed spectrum
         """
     
-        ceps = utility.spec2ceps(spec, self.dropphase)
+        ceps = MyUtility.mysignal.spec2ceps(spec, self.dropphase)
 
         ivar = self.v @ np.abs(self.v_inv @ ceps)
 
-        spec_like = utility.ceps2spec(ivar)
+        spec_like = MyUtility.mysignal.ceps2spec(ivar)
 
         return spec_like
-
 
 class MelScale(object):
     def __init__(self, n_fft, sr=16000, n_mels=128):
@@ -242,38 +240,9 @@ def test_vtl():
 
     sign_trans = vtl(sign)
 
-    # spec_trans = signal.stft(sign_trans,nperseg=256)[2]
-    # sign_trans = signal.istft(spec_trans,nperseg=256)[1]
-
-
     for i in range(a.size):
         soundfile.write(f"result/test_vtl/test{i}.wav",sign_trans[i],sr)
 
-
-def main():
-    # process args
-    parser = argparse.ArgumentParser(description="transform data")
-    parser.add_argument('sc', type=str, help="input filename with extension .npz")
-    parser.add_argument('dst', type=str, help="output filename with extension .npz")
-    args = parser.parse_args()
-
-    npz = np.load(args.sc)
-    x_train = npz['x_train'][:,:10000]
-    y_train = npz['y_train'][:10000]
-    x_test = npz['x_test'][:,:1000]
-    y_test = npz['y_test'][:1000]
-    
-    s2c = Function(utility.spec2ceps)
-    vtl = VTL(x_train.shape[0],np.tanh(np.linspace(-0.3,0.3)))
-    composed = transforms.Compose([s2c,vtl])
-
-    x_train_transformed = composed(x_train)
-    x_test_transformed = composed(x_test)
-
-    print(x_train_transformed.shape)
-    print(x_test_transformed.shape)
-    
-    np.savez(args.dst,x_train=x_train_transformed,y_train=y_train,x_test=x_test_transformed,y_test=y_test)
 
 def transform():
     parser = argparse.ArgumentParser(description="test class FramedTimit")
@@ -296,6 +265,7 @@ def transform():
 
     MyUtility.mydataset.save(train_data, args.dst, "TRAIN", 128)
     MyUtility.mydataset.save(test_data, args.dst, "TEST", 128)
+
 
 def load():
     parser = argparse.ArgumentParser(description="test class FramedTimit")

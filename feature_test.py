@@ -9,26 +9,6 @@ import trainer
 import transform
 from TIMIT.timit_data_processor import Timit
 
-class FullConect(nn.Module):
-    def __init__(self, in_features,out_features,n_hiddenlayers,hidden_channel=1024):
-        super(FullConect, self).__init__()
-        self.flatten = nn.Flatten()
-        self.inputlayer = nn.Linear(in_features,hidden_channel)
-        self.hiddenlayers = [nn.Linear(hidden_channel,hidden_channel) for _ in range(n_hiddenlayers)]
-        self.outputlayer = nn.Linear(hidden_channel,out_features)
-        self.activation = nn.ReLU()
-
-    def forward(self, input):
-        x = self.flatten(input)
-        x = self.inputlayer(x)
-        x = self.activation(x)
-        for i in range(len(self.hiddenlayers)):
-            x = self.hiddenlayers[i](x)
-            x = self.activation(x)
-        x = self.outputlayer(x)
-        logits = self.activation(x)
-        return logits
-
 
 def feature_test(train_dataloader, test_dataloader, n_class, max_hiddenlayers, epochs, log_dir, start_hiddenlayers=3):
     train_data = train_dataloader.__iter__().next()[0]

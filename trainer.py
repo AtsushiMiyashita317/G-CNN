@@ -1,3 +1,4 @@
+import os
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
@@ -57,8 +58,17 @@ def experiment(train_dataloader,test_dataloader,model,loss_fn,optimizer,device,e
     writer = SummaryWriter(log_dir=log_dir)
     iter = IntIterator().__iter__()
     for t in range(epochs):
+        if t % 10 == 0:
+            model_path = os.path.join(log_dir,f"model{t}.pth")
+            torch.save(model, model_path)
+
         print(f"Epoch {t+1}\n-------------------------------")
         train(train_dataloader, model, loss_fn, optimizer, device, writer, iter)
+
+    model_path = os.path.join(log_dir,f"model.pth")
+    torch.save(model, model_path)  
         
     test(test_dataloader, model, loss_fn, device, writer)
     print("Done!")
+
+    writer.close()
